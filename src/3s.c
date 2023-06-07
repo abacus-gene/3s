@@ -32,11 +32,12 @@
 #include <crtdbg.h>
 #endif
 
-extern double Small_Diff;
-extern int noisy, NFunCall;
-
-struct CommonInfo com;
-//struct BTEntry * GtreeTab[27] = {0};
+CommonInfo com;
+TREEB tree;
+TREEN nodes[NNODE];
+SPECIESTREE stree;
+DATA data;
+MLE MLEM0[MAXSPTREES];
 
 int LASTROUND;
 
@@ -48,10 +49,11 @@ double para[MAXPARAMETERS];  /* theta4 theta5 tau0 tau1 theta1 theta2 theta3 M12
 
 char * ModelStr[NEXTMODELS] = {"M0", "DiscreteBeta", "Isolation-with-Migration", "Introgression"};
 char * paranames[MAXPARAMETERS] = {"theta4", "theta5", "tau0", "tau1", "theta1", "theta2", "theta3"};
+char Mnames[][6] = { "w12/4", "w21/4", "w13/4", "w31/4", "w23/4", "w32/4", "w53/4", "w35/4", "wG1/4", "w1G/4", "wG2/4", "w2G/4", "wXY/4", "wYX/4" };
 //char *GtreeStr[18] = {"Gk", "G1b", "G1a", "G2c", "G2b", "G2a", "G3c", "G3b", "G3a", "G4c", "G4b", "G4a", "G5c", "G5b", "G5a", "G6c", "G6b", "G6a"};
 char * GtreeStr[35] = {"111G1(3)", "111G2(3)", "111G3(3)", "111G4(3)", "111G5(3)", "111G6(3)", "222G1(3)", "222G2(3)", "222G3(3)", "222G4(3)", "222G5(3)", "222G6(3)", "112G2(1)", "112G3(1)", "112G4(3)", "112G5(3)", "112G6(3)", "221G2(1)", "221G3(1)", "221G4(3)", "221G5(3)", "221G6(3)", "113G3(1)", "113G5(1)", "113G6(3)", "223G3(1)", "223G5(1)", "223G6(3)", "123G5(1)", "123G6(3)", "133G3&5(1)", "133G6(3)", "333G1&2&4(3)", "333G3&5(3)", "333G6(3)"};
 char * stateStr[NALLSTATES] = {"111", "112", "113", "121", "122", "123", "131", "132", "133", "211", "212", "213", "221", "222", "223", "231", "232", "233", "311", "312", "313", "321", "322", "323", "331", "332", "333", "11", "12", "13", "21", "22", "23", "31", "32", "33"};
-char * spStr[MAXSPTREES] = { "((1, 2), 3)", "((1, 3), 2)", "((2, 3), 1)", "((2, 1), 3)", "((3, 1), 2)", "((3, 2), 1)" };
+char * spStr[MAXSPTREES] = { "((1, 2), 3)", "((1, 3), 2)", "((2, 3), 1)" };
 //                            0  1  2   3   4  5   6   7  8   9  10  11  12 13 14  15  16 17  18  19  20  21  22  23  24  25 26
 const int initStateMap[27] = {0, 0, 0, -1, -1, 1, -1, -1, 0, -1, -1, -1,  1, 1, 2, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1, -1, 2};
 const int initStates[NINITIALSTATES] = { 0, 13, 1, 12, 2, 14, 5, 8, 17, 26 }; // { 111, 222, 112, 221, 113, 223, 123, 133, 233, 333 }
@@ -66,8 +68,8 @@ const int GtOffsetM2ProMax[60] = { 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 20,
 const int GtOffsetM3MSci12[54] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31, 32, 33, 34, 35, 36, 37, 38, 39, 42, 44, 45, 49, 52, 54, 55, 59, 64, 65, 69, 72, 75, 90, 92, 95 };
 const int GtOffsetM3MSci13[73] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 21, 22, 23, 24, 25, 28, 29, 31, 32, 33, 34, 35, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 52, 53, 54, 55, 63, 64, 65, 68, 69, 71, 72, 73, 74, 75, 76, 77, 78, 79, 81, 82, 83, 84, 85, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99 };
 const int GtOffsetM3MSci23[73] = { 0, 1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 24, 25, 31, 32, 33, 34, 35, 38, 39, 41, 42, 43, 44, 45, 51, 52, 53, 54, 55, 56, 57, 58, 59, 63, 64, 65, 68, 69, 71, 72, 73, 74, 75, 78, 79, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99 };
-const int spMap[MAXSPTREES][3] = { { 1, 2, 3 },{ 1, 3, 2 },{ 2, 3, 1 },{ 2, 1, 3 },{ 3, 1, 2 },{ 3, 2, 1 } };
-const int spPermute[MAXSPTREES][3] = { { 1, 2, 3 },{ 1, 3, 2 },{ 3, 2, 1 },{ 1, 3, 2 },{ 3, 2, 1 },{ 1, 3, 2 } };
+const int spMap[MAXSPTREES][3] = { { 1, 2, 3 },{ 1, 3, 2 },{ 2, 3, 1 } };
+const int spPermute[MAXSPTREES][3] = { { 1, 2, 3 },{ 1, 3, 2 },{ 3, 2, 1 } };
 const double chi2CV_5pct[14] = { 0, 3.84146, 5.99146, 7.81473, 9.48773, 11.0705, 12.5916, 14.0671, 15.5073, 16.919, 18.307, 19.6751, 21.0261, 22.362 };
 
 STATIC_ASSERT(MAXGTREES >= LENGTH_OF(GtOffsetM0));
@@ -90,7 +92,7 @@ double lbound1, ubound1, inc1, lbound2, ubound2, inc2;
 
 int main (int argc, char* argv[])
 {
-    char VerStr[32] = "Version 3.0, Aug 2015";
+    char VerStr[32] = "Version 4.0 beta, Jun 2023";
     double* space;
 
     if (argc > 2 && !strcmp(argv[argc - 1], "--stdout-no-buf"))
@@ -122,9 +124,9 @@ int main (int argc, char* argv[])
     if(com.seed<=0) com.seed = abs((2*(int)time(NULL)+1));
     SetSeed(com.seed, 0);
 
-    fout=gfopen(com.outf, "w");
-    frst=gfopen("rst", "w");
-    frub=(FILE*)gfopen("rub","w");
+    if ((fout=gfopen(com.outf, "w")) == NULL) error2("failed to create out file..");
+    if ((frst=gfopen("rst", "w")) == NULL) error2("failed to create rst file..");
+    if ((frub=gfopen("rub","w")) == NULL) error2("failed to create rub file..");
     fprintf(fout, "3s (%s)\n", VerStr);
     /*
      ReadSiteCounts(datafile);
@@ -168,19 +170,24 @@ int main (int argc, char* argv[])
 
 int GetOptions (char *ctlf)
 {
-    int iopt,i,j,offset, lline=4096;
-    char line[4096],*pline, opt[32], *comment="*#"; //, *seqerrstr="0EF";
-    char *optstr[] = {"seed", "nloci", "outfile", "seqfile", "ratefile",
+    int iopt,i,j,n=-1, lline=4096;
+    char line[4096],*pline, opt[32], *comment="*#", c=0, s[8*5+1][2]; //, *seqerrstr="0EF";
+    char *optstr[] = { "seed", "nloci", "outfile", "seqfile", "ratefile",
         "cleandata", "npoints", "getSE", "Small_Diff", "simmodel", "models", "Imapfile", "treefile",
         "speciestree", "species&tree", "usedata", "verbose", "initialvalues", "nthreads",
-        "est_M12", "est_M21", "est_M13", "est_M31", "est_M23", "est_M32", "est_M53", "est_M35",
-        "est_phi12", "est_phi21", "est_phi13", "est_phi31", "est_phi23", "est_phi32",
-        "est_thetaX", "est_thetaY", "est_thetaZ"};
+        "theta_UB", "M_UB", "migration", "introgression", "GIM_2species",
+        "fix_theta5_4", "fix_theta1_5", "fix_theta2_5", "fix_theta3_4", "fix_theta5_1", "fix_theta5_2",
+        "fix_thetaX", "fix_thetaY", "fix_thetaZ", "fix_thetaU", "fix_thetaV", "fix_thetaW",
+        "fix_2s_thetaX", "fix_2s_thetaY" };
     int nopt = LENGTH_OF(optstr);
     double t=1;
     int m[NEXTMODELS] = {0, 0, 0, 0}, runm[NEXTMODELS] = {0, 0, 0, 0}, nm = 0;
+    enum { M12 = 0, M21, M13, M31, M23, M32, M53, M35, Phi12, Phi21, Phi13, Phi31, Phi23, Phi32 };
+    enum { Theta5_4 = 0, Theta1_5, Theta2_5, Theta3_4, Theta5_1, Theta5_2, ThetaX, ThetaY, ThetaZ, ThetaU, ThetaV, ThetaW };
+    enum { M12_2sp = 0, M21_2sp, MG1_2sp, M1G_2sp, MG2_2sp, M2G_2sp, MXY_2sp, MYX_2sp, Phi12_2sp, Phi21_2sp, PhiG1_2sp, PhiG2_2sp };
+    enum { ThetaX_2sp = 0, ThetaY_2sp };
+
     FILE  *fctl=gfopen (ctlf, "r");
-    enum { M12 = 0, M21, M13, M31, M23, M32, M53, M35, Phi12, Phi21, Phi13, Phi31, Phi23, Phi32, ThetaX = 0, ThetaY, ThetaZ };
 
     stree.speciestree = 0;
     stree.nspecies = 0;
@@ -192,15 +199,26 @@ int GetOptions (char *ctlf)
     com.verbose = 1;
     com.aroundMLEM0 = 1;
     com.nthreads = 1;
+    com.theta_UB = 1.99;
+    com.M_UB = 9.99;
     com.cleandata = 1;
     com.fix_locusrate = 0;
+    com.gIM_2sp = 0;
     com.simmodel = 0; /* use asymmetric model by default */
     com.runmodels[M0] = com.runmodels[M1DiscreteBeta] = com.runmodels[M2IM] = com.runmodels[M3MSci] = 0;
     strcpy(com.Imapf, ""); /* by default, use */
     memset(com.initials, 0, NMODELS*MAXPARAMETERS*sizeof(double));
-    memset(com.fixto0, 0, LENGTH_OF(com.fixto0)*sizeof(int));
     memset(com.fix, 0, LENGTH_OF(com.fix)*sizeof(int));
-    memset(com.asymmetric, 0, LENGTH_OF(com.asymmetric)*sizeof(int));
+    com.fix[ThetaX] = 1;
+    com.fix[ThetaY] = 1;
+    com.fix[ThetaZ] = 1;
+    com.fix[ThetaW] = 1;
+    com.fix_2sp[ThetaX_2sp] = 1;
+    com.fix_2sp[ThetaY_2sp] = 1;
+    for (i = 0; i < LENGTH_OF(com.fixto0); i++)
+        com.fixto0[i] = 1;
+    for (i = 0; i < LENGTH_OF(com.fixto0_2sp); i++)
+        com.fixto0_2sp[i] = 1;
 
     if (fctl) {
         if (noisy) printf ("\nReading options from %s..\n", ctlf);
@@ -221,11 +239,10 @@ int GetOptions (char *ctlf)
                     if (noisy>=9)
                         printf ("\n%3d %15s | %-20s %6.2f", iopt+1,optstr[iopt],opt,t);
                     switch (iopt) {
-                        case ( 0): com.seed=(int)t;                    break;
-                        case ( 1): data.ndata=(int)t;
-                            break;
-                        case ( 2): sscanf(pline+1, "%s", com.outf);    break;
-                        case ( 3): sscanf(pline+1, "%s", com.seqf);    break;
+                        case ( 0): com.seed=(int)t;                        break;
+                        case ( 1): data.ndata=(int)t;                      break;
+                        case ( 2): sscanf(pline+1, "%s", com.outf);        break;
+                        case ( 3): sscanf(pline+1, "%s", com.seqf);        break;
                         case ( 4): sscanf(pline+1, "%s", com.ratef);   com.fix_locusrate = 1; break;
                         case ( 5):
                             com.cleandata=(int)t;
@@ -234,19 +251,19 @@ int GetOptions (char *ctlf)
                         case ( 6):
                             sscanf(pline+1, "%d%d%d", &com.npoints, &com.ncatBeta, &com.UseMedianBeta);
                             break;
-                        case ( 7): com.getSE=(int)t;                   break;
-                        case ( 8): Small_Diff=t;                       break;
-                        case ( 9): com.simmodel = (int)t;              break;
+                        case ( 7): com.getSE=(int)t;                       break;
+                        case ( 8): Small_Diff=t;                           break;
+                        case ( 9): com.simmodel = (int)t;                  break;
                         case (10): nm = sscanf(pline+1, "%d %d %d %d", &m[0], &m[1], &m[2], &m[3]); break;
-                        case (11): sscanf(pline+1, "%s", com.Imapf);   break;
-                        case (12): sscanf(pline+1, "%s", com.treef);   break;
+                        case (11): sscanf(pline+1, "%s", com.Imapf);       break;
+                        case (12): sscanf(pline+1, "%s", com.treef);       break;
                         case (13):
                             stree.speciestree = (int)t;
                             if (stree.speciestree != 0 && stree.speciestree != 1) error2("speciestree = 0 or 1");
                             break;
                         case (14):
                             stree.nspecies = (int)t;
-                            if (stree.nspecies != NSPECIES) error2("3s only deals with 3 species");
+                            if (stree.nspecies <= 0 || stree.nspecies > NSPECIES) error2("3s only deals with up to 3 species");
                             ReadSpeciesTree(fctl, pline+1);
                             break;
                         case (15):
@@ -267,27 +284,48 @@ int GetOptions (char *ctlf)
                             if (com.nthreads < 1 && com.nthreads != -1) error2("nthreads >= 1 or = -1");
 #else
                             if (com.nthreads != 1 && com.nthreads != -1)
-                                fprintf(stderr, "\nWarning: nthreads is ignored. To enable parallelization, please compile the program with OpenMP.\n");
+                                fprintf(stderr, "\nWarning: 'nthreads' is ignored. To enable parallelization, please compile the program with OpenMP.\n");
                             com.nthreads = 1;
 #endif
                             break;
-                        case (19): com.fixto0[M12] = !(int)t;          break;
-                        case (20): com.fixto0[M21] = !(int)t;          break;
-                        case (21): com.fixto0[M13] = !(int)t;          break;
-                        case (22): com.fixto0[M31] = !(int)t;          break;
-                        case (23): com.fixto0[M23] = !(int)t;          break;
-                        case (24): com.fixto0[M32] = !(int)t;          break;
-                        case (25): com.fixto0[M53] = !(int)t;          break;
-                        case (26): com.fixto0[M35] = !(int)t;          break;
-                        case (27): com.fixto0[Phi12] = !(int)t;        break;
-                        case (28): com.fixto0[Phi21] = !(int)t;        break;
-                        case (29): com.fixto0[Phi13] = !(int)t;        break;
-                        case (30): com.fixto0[Phi31] = !(int)t;        break;
-                        case (31): com.fixto0[Phi23] = !(int)t;        break;
-                        case (32): com.fixto0[Phi32] = !(int)t;        break;
-                        case (33): com.fix[ThetaX] = !(int)t;          break;
-                        case (34): com.fix[ThetaY] = !(int)t;          break;
-                        case (35): com.fix[ThetaZ] = !(int)t;          break;
+                        case (19): if (com.theta_UB < t) com.theta_UB = t; break;
+                        case (20): if (com.M_UB < t) com.M_UB = t;         break;
+                        case (21) :
+                            n = (int)t;
+                            if (n < 0) error2("migration >= 0");
+                            if (n > LENGTH_OF(s) - 1) n = LENGTH_OF(s) - 1;
+                            for (i = 1; i <= n; i++) {
+                                while (fgets(line, lline, fctl)) {
+                                    for (j=0, t=0; j<lline && line[j]; j++) {
+                                        if (!isspace(line[j])) { t = 1; break; }
+                                    }
+                                    if (t && !strchr(comment, line[j])) break;
+                                }
+                                if (sscanf(line, " %c %c",  &s[i][0], &s[i][1]) != 2)
+                                    { fprintf(stderr, "\nError: migration = n\n                   i j\n"); exit(-1); }
+                            }
+                            break;
+                        case (22) :
+                            c = 1;
+                            if (sscanf(pline+1, " %c %c %c", &c, &s[0][0], &s[0][1]) != 3
+                                || c != 'U' && c != 'u' && c != 'B' && c != 'b')
+                                { fprintf(stderr, "\nError: introgression = U|B i j\n"); exit(-1); }
+                            break;
+                        case (23): com.gIM_2sp = (int)t;                   break;
+                        case (24): com.fix[Theta5_4] = (int)t;            break;
+                        case (25): com.fix[Theta1_5] = (int)t;            break;
+                        case (26): com.fix[Theta2_5] = (int)t;            break;
+                        case (27): com.fix[Theta3_4] = (int)t;            break;
+                        case (28): com.fix[Theta5_1] = (int)t;            break;
+                        case (29): com.fix[Theta5_2] = (int)t;            break;
+                        case (30): com.fix[ThetaX] = (int)t;              break;
+                        case (31): com.fix[ThetaY] = (int)t;              break;
+                        case (32): com.fix[ThetaZ] = (int)t;              break;
+                        case (33): com.fix[ThetaU] = (int)t;              break;
+                        case (34): com.fix[ThetaV] = (int)t;              break;
+                        case (35): com.fix[ThetaW] = (int)t;              break;
+                        case (36): com.fix_2sp[ThetaX_2sp] = (int)t;      break;
+                        case (37): com.fix_2sp[ThetaY_2sp] = (int)t;      break;
                     }
                     break;
                 }
@@ -299,83 +337,495 @@ int GetOptions (char *ctlf)
 
         fclose(fctl);
 
-        if (stree.nspecies != NSPECIES)
-            error2("\noption species&tree: species tree is required\n");
+#ifdef DEBUG_GTREE_PROB
+        if (com.usedata == ETreeData) error2("DEBUG_GTREE_PROB usedata = 1");
+#endif
 
-        if (nm > 0) {
-            for (i = 0; i < nm; i++) {
-                if (m[i] >= NEXTMODELS) {
-                    error2("\noption models: unknown model\n");
-                }
-                runm[m[i]] = 1;
-            }
-            for (i = 0; i < NEXTMODELS; i++) {
-                com.runmodels[i] = runm[i];
-            }
+        if (!stree.nspecies) {
+            fprintf(stderr, "\nWarning: species and tree are not porvided (option 'species&tree').\n");
+            fprintf(stderr, "  Use the default species names and tree: ((1, 2), 3);\n");
+            stree.nspecies = NSPECIES;
+            ReadSpeciesTree(fctl, "3  1 2 3");
         }
 
-        if (!com.runmodels[M0])
-            error2("\noption models: model M0 is required\n");
-
+        for (i = 0; i < nm; i++) {
+            if (m[i] >= NEXTMODELS) {
+                error2("option models: unknown model");
+            }
+            runm[m[i]] = 1;
+        }
+        nm = 0;
         for (i = 0; i < NEXTMODELS; i++) {
-            if (com.runmodels[i])
-                com.modelMap[i] = ModelMap(i);
+            com.runmodels[i] = runm[i];
+            nm += com.runmodels[i];
         }
 
-        com.asymmetric[M2SIM3s] = (!com.simmodel && com.fixto0[M12] != com.fixto0[M21]);
-        com.asymmetric[M2Pro] = (com.fixto0[M12] != com.fixto0[M21] || com.fixto0[M13] != com.fixto0[M23] || com.fixto0[M31] != com.fixto0[M32]);
-        com.asymmetric[M2ProMax] = com.asymmetric[M2Pro];
-        com.asymmetric[M3MSci12] = (com.fixto0[Phi12] != com.fixto0[Phi21]);
-        com.asymmetric[M3MSci13] = (!com.fixto0[Phi13] || !com.fixto0[Phi31]);
-        com.asymmetric[M3MSci23] = (!com.fixto0[Phi23] || !com.fixto0[Phi32]);
+        if (com.simmodel && (stree.nspecies != 3 || nm != com.runmodels[M0] + com.runmodels[M2IM]))
+            error2("option 'simmodel' is only compatible with 3 species under Model 0 (M0) and Model 2 (Isolation-with-Migration)");
 
-        if (stree.speciestree)
-            if (com.runmodels[M2IM] && com.asymmetric[com.modelMap[M2IM]] || com.runmodels[M3MSci] && com.asymmetric[com.modelMap[M3MSci]])
-                stree.nsptree = 6;
-            else
-                stree.nsptree = 3;
+        if (stree.nspecies == 2 && com.runmodels[M1DiscreteBeta]) {
+            fprintf(stderr, "\nWarning: 2 species are specified. Skip Model 1 (DiscreteBeta).\n");
+            nm -= com.runmodels[M1DiscreteBeta];
+            com.runmodels[M1DiscreteBeta] = 0;
+        }
+
+        if (stree.nspecies == 1 && nm != com.runmodels[M0]) {
+            fprintf(stderr, "\nWarning: 1 species is specified. Skip other models expect Model 0 (M0).\n");
+            nm = com.runmodels[M0];
+            for (i = 0; i < NEXTMODELS; i++)
+                if (i != M0)
+                    com.runmodels[i] = 0;
+        }
+
+        if (!nm)
+            error2("no model specified (option 'models')");
+
+        if (com.runmodels[M2IM]) {
+            for (i = 1; i <= n; i++)
+                SetGeneFlowOpt('M', s[i][0], s[i][1]);
+            if (n == -1) {
+                fprintf(stderr, "\nWarning: option 'migration' is not porvided.\n");
+                fprintf(stderr, "  Use the default: migration = 2\n                               1 2\n                               2 1\n");
+                n = 2;
+                SetGeneFlowOpt('M', '1', '2');
+                SetGeneFlowOpt('M', '2', '1');
+            }
+        }
+
+        if (com.runmodels[M3MSci] && c) {
+            SetGeneFlowOpt('I', s[0][0], s[0][1]);
+            if (c == 'B' || c == 'b')
+                SetGeneFlowOpt('I', s[0][1], s[0][0]);
+        }
+
+        if (stree.nspecies != 3 && stree.speciestree == 1) {
+            fprintf(stderr, "\nWarning: option 'speciestree = 1' is only compatible with 3 species.\n");
+            fprintf(stderr, "  Option 'speciestree' is set to 0.\n");
+            stree.speciestree = 0;
+        }
+
+        // TODO
+        if (nm != com.runmodels[M0] && stree.speciestree == 1)
+            error2("option 'speciestree = 1' is only compatible with Model 0 (M0)");
+
+        if (!com.runmodels[M0] && com.aroundMLEM0) {
+            fprintf(stderr, "\nWarning: model M0 is not specified (option 'models').\n");
+            fprintf(stderr, "  Option 'initialvalues' is set to 0.\n");
+            com.aroundMLEM0 = 0;
+        }
+
+        if (com.simmodel && com.runmodels[M2IM] && (
+               com.fixto0[M12] != com.fixto0[M21]
+            || !com.fixto0[M13] || !com.fixto0[M31]
+            || !com.fixto0[M23] || !com.fixto0[M32]
+            || !com.fixto0[M53] || !com.fixto0[M35]
+            || com.fix[Theta1_5] != com.fix[Theta2_5]
+            || com.fix[Theta5_1] != com.fix[Theta5_2]
+            || !com.fix[ThetaW])) {
+            fprintf(stderr, "\nWarning: the symmetric migration model of Zhu and Yang (2012) is specified (option 'simmodel').\n");
+            fprintf(stderr, "  theta1 = theta2 and M12 = M21\n");
+            com.fixto0[M21] = com.fixto0[M12];
+            com.fixto0[M13] = 1;
+            com.fixto0[M31] = 1;
+            com.fixto0[M23] = 1;
+            com.fixto0[M32] = 1;
+            com.fixto0[M53] = 1;
+            com.fixto0[M35] = 1;
+            com.fix[Theta2_5] = com.fix[Theta1_5];
+            com.fix[Theta5_2] = com.fix[Theta5_1];
+            com.fix[ThetaW] = 1;
+        }
+
+        if (stree.speciestree == 1 && (
+               com.fix[Theta5_4] || com.fix[Theta3_4]
+            || com.fix[Theta1_5] || com.fix[Theta2_5]
+            || com.fix[Theta5_1] || com.fix[Theta5_2]
+            || (com.runmodels[M2IM] && (!com.fixto0[M53] || !com.fixto0[M35])))) {
+            fprintf(stderr, "\nWarning: option 'speciestree = 1'.\n");
+            if (   com.fix[Theta5_4] || com.fix[Theta3_4]
+                || com.fix[Theta1_5] || com.fix[Theta2_5]
+                || com.fix[Theta5_1] || com.fix[Theta5_2]) {
+                fprintf(stderr, "  Options 'fix_thetai_j' are set to 0.\n");
+                com.fix[Theta5_4] = 0;
+                com.fix[Theta1_5] = 0;
+                com.fix[Theta2_5] = 0;
+                com.fix[Theta3_4] = 0;
+                com.fix[Theta5_1] = 0;
+                com.fix[Theta5_2] = 0;
+            }
+            if (com.runmodels[M2IM] && (!com.fixto0[M53] || !com.fixto0[M35])) {
+                fprintf(stderr, "  M53 = 0 and M35 = 0\n");
+                com.fixto0[M53] = 1;
+                com.fixto0[M35] = 1;
+            }
+        }
+
+        if(com.fix[Theta1_5] && com.fix[Theta5_1] || com.fix[Theta2_5] && com.fix[Theta5_2])
+            error2("fix_thetai_j = 1 and fix_thetaj_i = 1 are mutually exclusive");
+
+        if( stree.nspecies == 2 || stree.speciestree == 1)
+            stree.nsptree = 3;
         else
             stree.nsptree = 1;
     }
     else
-        if (noisy) error2("\nno ctl file..");
+        if (noisy) error2("no ctl file..");
 
-    fctl = fopen("in.3s", "r");
-    if (fctl) {
+    GetInitialsFromFile((stree.nspecies == 3) ? "in.3s" : "in.2s");
+
+    return(0);
+}
+
+int SetGeneFlowOpt(char type, char from, char to)
+{
+    if (stree.nspecies == 3) {
+        enum { M12 = 0, M21, M13, M31, M23, M32, M53, M35, Phi12, Phi21, Phi13, Phi31, Phi23, Phi32 };
+
+        if (type == 'M') { // MSC-M
+                 if (from == '1' && to == '2') com.fixto0[M12] = 0;
+            else if (from == '2' && to == '1') com.fixto0[M21] = 0;
+            else if (from == '1' && to == '3') com.fixto0[M13] = 0;
+            else if (from == '3' && to == '1') com.fixto0[M31] = 0;
+            else if (from == '2' && to == '3') com.fixto0[M23] = 0;
+            else if (from == '3' && to == '2') com.fixto0[M32] = 0;
+            else if (from == '5' && to == '3') com.fixto0[M53] = 0;
+            else if (from == '3' && to == '5') com.fixto0[M35] = 0;
+            else { fprintf(stderr, "\nError: invalid '%c %c' in option 'migration'.\n", from, to); exit(-1); }
+        }
+        else if (type == 'I') { // MSci
+                 if (from == '1' && to == '2') com.fixto0[Phi12] = 0;
+            else if (from == '2' && to == '1') com.fixto0[Phi21] = 0;
+            else if (from == '1' && to == '3') com.fixto0[Phi13] = 0;
+            else if (from == '3' && to == '1') com.fixto0[Phi31] = 0;
+            else if (from == '2' && to == '3') com.fixto0[Phi23] = 0;
+            else if (from == '3' && to == '2') com.fixto0[Phi32] = 0;
+            else { fprintf(stderr, "\nError: invalid '%c %c' in option 'introgression'.\n", from, to); exit(-1); }
+        }
+        else
+            error2("unknown gene flow type");
+    }
+    else if (stree.nspecies == 2) {
+        enum { M12_2sp = 0, M21_2sp, MG1_2sp, M1G_2sp, MG2_2sp, M2G_2sp, MXY_2sp, MYX_2sp, Phi12_2sp, Phi21_2sp, PhiG1_2sp, PhiG2_2sp };
+
+        if (type == 'M') { // MSC-M
+                 if (from == '1' && to == '2') com.fixto0_2sp[M12_2sp] = 0;
+            else if (from == '2' && to == '1') com.fixto0_2sp[M21_2sp] = 0;
+            else if ((from == 'G' || from == 'g') && to == '1') com.fixto0_2sp[MG1_2sp] = 0;
+            else if (from == '1' && (to == 'G' || to == 'g')) com.fixto0_2sp[M1G_2sp] = 0;
+            else if ((from == 'G' || from == 'g') && to == '2') com.fixto0_2sp[MG2_2sp] = 0;
+            else if (from == '2' && (to == 'G' || to == 'g')) com.fixto0_2sp[M2G_2sp] = 0;
+            else if ((from == 'X' || from == 'x') && (to == 'Y' || to == 'y')) com.fixto0_2sp[MXY_2sp] = 0;
+            else if ((from == 'Y' || from == 'y') && (to == 'X' || to == 'x')) com.fixto0_2sp[MYX_2sp] = 0;
+            else { fprintf(stderr, "\nError: invalid '%c %c' in option 'migration'.\n", from, to); exit(-1); }
+        }
+        else if (type == 'I') { // MSci
+                 if (from == '1' && to == '2') com.fixto0_2sp[Phi12_2sp] = 0;
+            else if (from == '2' && to == '1') com.fixto0_2sp[Phi21_2sp] = 0;
+            else if ((from == 'G' || from == 'g') && to == '1') com.fixto0_2sp[PhiG1_2sp] = 0;
+            else if ((from == 'G' || from == 'g') && to == '2') com.fixto0_2sp[PhiG2_2sp] = 0;
+            else { fprintf(stderr, "\nError: invalid '%c %c' in option 'introgression'.\n", from, to); exit(-1); }
+        }
+        else
+            error2("unknown gene flow type");
+    }
+
+    return 0;
+}
+
+int GetInitialsFromFile(char *filename)
+{
+#define NA MAXPARAMETERS
+    /*
+    in.3s:
+    Indix:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
+    M0:       theta4 theta5   tau0   tau1 theta1 theta2 theta3
+    M1:       theta4 theta5   tau0   tau1 theta1 theta2 theta3  qbeta
+    M2:       theta4 theta5   tau0   tau1 theta1 theta2 theta3    M12    M21    M13    M31    M23    M32    M53    M35 thetaW
+    M3:       theta4 theta5   tau0   tau1 theta1 theta2 theta3   tauH  phi12  phi21  phi13  phi31  phi23  phi32 thetaX thetaY thetaZ
+                                                         ||
+                                                        \||/
+                                                         \/
+    com.initials[NMODELS][MAXPARAMETERS + 1]:
+    Indix:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
+    M0:       theta4 theta5   tau0   tau1 theta1 theta2 theta3
+    M1:       theta4 theta5   tau0   tau1 theta1 theta2 theta3  qbeta
+    M2_S:     theta4 theta5   tau0   tau1 theta1 theta2 theta3           M12    M21
+    M2_P:     theta4 theta5   tau0   tau1 theta1 theta2 theta3 thetaW    M12    M21    M13    M31    M23    M32
+    M2_PM:    theta4 theta5   tau0   tau1 theta1 theta2 theta3 thetaW    M12    M21    M13    M31    M23    M32    M53    M35
+    M3_12:    theta4 theta5   tau0   tau1 theta1 theta2 theta3   tauH thetaX thetaY  phi12  phi21
+    M3_13:    theta4 theta5   tau0   tau1 theta1 theta2 theta3   tauH thetaX thetaZ  phi13  phi31
+    M3_23:    theta4 theta5   tau0   tau1 theta1 theta2 theta3   tauH thetaY thetaZ  phi23  phi32
+    */
+    static int toInitialsMap[][MAXPARAMETERS + 1] = {
+        { 0, 1, 2, 3, 4, 5, 6, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA },
+        { 0, 1, 2, 3, 4, 5, 6,  7, NA, NA, NA, NA, NA, NA, NA, NA, NA },
+        { 0, 1, 2, 3, 4, 5, 6,  8,  9, NA, NA, NA, NA, NA, NA, NA, NA },
+        { 0, 1, 2, 3, 4, 5, 6,  8,  9, 10, 11, 12, 13, NA, NA,  7, NA },
+        { 0, 1, 2, 3, 4, 5, 6,  8,  9, 10, 11, 12, 13, 14, 15,  7, NA },
+        { 0, 1, 2, 3, 4, 5, 6,  7, 10, 11, NA, NA, NA, NA,  8,  9, NA },
+        { 0, 1, 2, 3, 4, 5, 6,  7, NA, NA, 10, 11, NA, NA,  8, NA,  9 },
+        { 0, 1, 2, 3, 4, 5, 6,  7, NA, NA, NA, NA, 10, 11, NA,  8,  9 }};
+
+    /*
+    in.2s:
+    Indix:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
+    M0:       theta0   tau0 theta1 theta2
+    M2:       theta0   tau0 theta1 theta2   tau1    M12    M21    MXY    MYX    MG1    M1G    MG2    M2G thetaG thetaX thetaY
+    M3:       theta0   tau0 theta1 theta2   tau1   tauH  phi12  phi21  phiG1  phiG2 thetaG thetaX thetaY
+                                                         ||
+                                                        \||/
+                                                         \/
+    com.initials[NMODELS][MAXPARAMETERS + 1]:
+    Indix:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
+    M0:       theta0          tau0        theta1 theta2
+    M2_1:     theta0          tau0        theta1 theta2                  M12    M21
+    M2_2:     theta0 thetaX   tau0   tau1 theta1 thetaG theta2 thetaY                                MG2    M2G    MXY    MYX
+    M2_3:     theta0 thetaY   tau0   tau1 theta2 thetaG theta1 thetaX                                MG1    M1G    MYX    MXY
+    M2_4:     theta0 thetaX   tau0   tau1 theta1        theta2 thetaY                  M12    M21                  MXY    MYX
+    M3_1:     theta0          tau0        theta1 theta2          tauH thetaX thetaY  phi12  phi21
+    M3_2:     theta0 thetaX   tau0   tau1 theta1        theta2   tauH thetaG thetaY  phiG2
+    M3_3:     theta0 thetaY   tau0   tau1 theta2        theta1   tauH thetaG thetaX  phiG1
+    */
+    static int toInitialsMap_2sp[][MAXPARAMETERS + 1] = {
+        { 0, 2, 4, 5, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA },
+        { 0 },
+        { 0, 2, 4, 5, NA,  8,  9, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA },
+        { 0, 2, 4, 6,  3, NA, NA, 14, 15, NA, NA, 12, 13,  5,  1,  7, NA },
+        { 0, 2, 6, 4,  3, NA, NA, 15, 14, 12, 13, NA, NA,  5,  7,  1, NA },
+        { 0, 2, 4, 6,  3, 10, 11, 14, 15, NA, NA, NA, NA, NA,  1,  7, NA },
+        { 0, 2, 4, 5, NA,  7, 10, 11, NA, NA, NA,  8,  9, NA, NA, NA, NA },
+        { 0, 2, 4, 6,  3,  7, NA, NA, NA, 10,  8,  1,  9, NA, NA, NA, NA },
+        { 0, 2, 6, 4,  3,  7, NA, NA, 10, NA,  8,  9,  1, NA, NA, NA, NA }};
+#undef NA
+
+    int i,j, offset, lline=4096;
+    char line[4096],*pline, *comment="*#";
+    double t=1;
+    int model_2sp, model, *mapped;
+
+    FILE  *fin = fopen(filename, "r");
+    if (fin) {
         for (i=0; i<NEXTMODELS; i++) {
-            while (fgets(line, lline, fctl)) {
+            if (stree.nspecies != 3 && i == M1DiscreteBeta)
+                continue;
+            while (fgets(line, lline, fin)) {
                 for (j=0, t=0; j<lline && line[j]; j++) {
                     if (!isspace(line[j])) { t = 1; break; }
                 }
                 if (t && !strchr(comment, line[j])) break;
             }
-            if (!com.runmodels[i]) {
+
+            if (!com.runmodels[i])
                 continue;
-            }
-            for (j=0, pline=line; j<MAXPARAMETERS; j++, pline+=offset) {
-                if (sscanf(pline, "%lf%n", &com.initials[com.modelMap[i]][j], &offset) != 1)
+            if (stree.nspecies != 3)
+                model_2sp = ModelMap_2sp(i);
+            model = ModelMap(i);
+
+            mapped = (stree.nspecies == 3) ? toInitialsMap[model] : toInitialsMap_2sp[model_2sp];
+            for (j=0, pline=line; j<MAXPARAMETERS+1; j++, pline+=offset) {
+                if (sscanf(pline, "%lf%n", &com.initials[model][mapped[j]], &offset) != 1)
                     break;
             }
         }
+        fclose(fin);
     }
 
     return(0);
 }
 
+int ModelMap_2sp(int extModel)
+{
+    enum { M12 = 0, M21, M13, M31, M23, M32, M53, M35, Phi12, Phi21, Phi13, Phi31, Phi23, Phi32 };
+    enum { Theta5_4 = 0, Theta1_5, Theta2_5, Theta3_4, Theta5_1, Theta5_2, ThetaX, ThetaY, ThetaZ, ThetaU, ThetaV, ThetaW };
+    enum { M12_2sp = 0, M21_2sp, MG1_2sp, M1G_2sp, MG2_2sp, M2G_2sp, MXY_2sp, MYX_2sp, Phi12_2sp, Phi21_2sp, PhiG1_2sp, PhiG2_2sp };
+    enum { ThetaX_2sp = 0, ThetaY_2sp };
+    int intModel;
+
+    switch (extModel)
+    {
+    case M0:
+        intModel = M0;
+        com.fix[Theta5_4] = 1;
+        com.fix[Theta1_5] = 0;
+        com.fix[Theta2_5] = 0;
+        com.fix[Theta3_4] = 0;
+        com.fix[Theta5_1] = 0;
+        com.fix[Theta5_2] = 0;
+        if (stree.nspecies == 1)
+            com.fix[Theta1_5] = 1;
+        break;
+    case M2IM:
+        if (!com.gIM_2sp) {
+            intModel = M2_1;
+            com.fixto0[M12] = com.fixto0_2sp[M12_2sp];
+            com.fixto0[M21] = com.fixto0_2sp[M21_2sp];
+            com.fixto0[M13] = 1;
+            com.fixto0[M31] = 1;
+            com.fixto0[M23] = 1;
+            com.fixto0[M32] = 1;
+            com.fixto0[M53] = 1;
+            com.fixto0[M35] = 1;
+            com.fix[Theta5_4] = 1;
+            com.fix[Theta1_5] = 0;
+            com.fix[Theta2_5] = 0;
+            com.fix[Theta3_4] = 0;
+            com.fix[Theta5_1] = 0;
+            com.fix[Theta5_2] = 0;
+            com.fix[ThetaW] = 0;
+        }
+        else if (!(com.fixto0_2sp[MG2_2sp] && com.fixto0_2sp[M2G_2sp])
+                && com.fixto0_2sp[MG1_2sp] && com.fixto0_2sp[M1G_2sp]) {
+            intModel = M2_2;
+            com.fixto0[M12] = 1;
+            com.fixto0[M21] = 1;
+            com.fixto0[M13] = 1;
+            com.fixto0[M31] = 1;
+            com.fixto0[M23] = com.fixto0_2sp[MG2_2sp];
+            com.fixto0[M32] = com.fixto0_2sp[M2G_2sp];
+            com.fixto0[M53] = com.fixto0_2sp[MXY_2sp];
+            com.fixto0[M35] = com.fixto0_2sp[MYX_2sp];
+            com.fix[Theta5_4] = 0;
+            com.fix[Theta1_5] = 0;
+            com.fix[Theta2_5] = 0;
+            com.fix[Theta3_4] = 0;
+            com.fix[Theta5_1] = com.fix_2sp[ThetaX_2sp];
+            com.fix[Theta5_2] = 0;
+            com.fix[ThetaW] = com.fix_2sp[ThetaY_2sp];
+        }
+        else if (com.fixto0_2sp[MG2_2sp] && com.fixto0_2sp[M2G_2sp]
+            && !(com.fixto0_2sp[MG1_2sp] && com.fixto0_2sp[M1G_2sp])) {
+            intModel = M2_3;
+            com.fixto0[M12] = 1;
+            com.fixto0[M21] = 1;
+            com.fixto0[M13] = 1;
+            com.fixto0[M31] = 1;
+            com.fixto0[M23] = com.fixto0_2sp[MG1_2sp];
+            com.fixto0[M32] = com.fixto0_2sp[M1G_2sp];
+            com.fixto0[M53] = com.fixto0_2sp[MYX_2sp];
+            com.fixto0[M35] = com.fixto0_2sp[MXY_2sp];
+            com.fix[Theta5_4] = 0;
+            com.fix[Theta1_5] = 0;
+            com.fix[Theta2_5] = 0;
+            com.fix[Theta3_4] = 0;
+            com.fix[Theta5_1] = com.fix_2sp[ThetaY_2sp];
+            com.fix[Theta5_2] = 0;
+            com.fix[ThetaW] = com.fix_2sp[ThetaX_2sp];
+        }
+        else if (com.fixto0_2sp[MG2_2sp] && com.fixto0_2sp[M2G_2sp]
+              && com.fixto0_2sp[MG1_2sp] && com.fixto0_2sp[M1G_2sp]) {
+            intModel = M2_4;
+            com.fixto0[M12] = 1;
+            com.fixto0[M21] = 1;
+            com.fixto0[M13] = com.fixto0_2sp[M12_2sp];
+            com.fixto0[M31] = com.fixto0_2sp[M21_2sp];
+            com.fixto0[M23] = 1;
+            com.fixto0[M32] = 1;
+            com.fixto0[M53] = com.fixto0_2sp[MXY_2sp];
+            com.fixto0[M35] = com.fixto0_2sp[MYX_2sp];
+            com.fix[Theta5_4] = 0;
+            com.fix[Theta1_5] = 0;
+            com.fix[Theta2_5] = 0;
+            com.fix[Theta3_4] = 0;
+            com.fix[Theta5_1] = com.fix_2sp[ThetaX_2sp];
+            com.fix[Theta5_2] = 0;
+            com.fix[ThetaW] = com.fix_2sp[ThetaY_2sp];
+        }
+        else
+            error2("MSC-M model not implemented yet");
+        break;
+    case M3MSci:
+        if (com.fixto0_2sp[PhiG2_2sp] && com.fixto0_2sp[PhiG1_2sp]) {
+            intModel = M3_1;
+            com.fixto0[Phi12] = com.fixto0_2sp[Phi12_2sp];
+            com.fixto0[Phi21] = com.fixto0_2sp[Phi21_2sp];
+            com.fixto0[Phi13] = 1;
+            com.fixto0[Phi31] = 1;
+            com.fixto0[Phi23] = 1;
+            com.fixto0[Phi32] = 1;
+            com.fix[Theta5_4] = 1;
+            com.fix[Theta1_5] = 0;
+            com.fix[Theta2_5] = 0;
+            com.fix[Theta3_4] = 0;
+            com.fix[Theta5_1] = 0;
+            com.fix[Theta5_2] = 0;
+            com.fix[ThetaX] = com.fix_2sp[ThetaX_2sp];
+            com.fix[ThetaY] = com.fix_2sp[ThetaY_2sp];
+        }
+        else if (!com.fixto0_2sp[PhiG2_2sp] && com.fixto0_2sp[PhiG1_2sp]) {
+            intModel = M2_2;
+            com.fixto0[Phi12] = 1;
+            com.fixto0[Phi21] = 1;
+            com.fixto0[Phi13] = 1;
+            com.fixto0[Phi31] = 1;
+            com.fixto0[Phi23] = com.fixto0_2sp[PhiG2_2sp];
+            com.fixto0[Phi32] = 1;
+            com.fix[Theta5_4] = 0;
+            com.fix[Theta1_5] = 0;
+            com.fix[Theta2_5] = 0;
+            com.fix[Theta3_4] = 0;
+            com.fix[Theta5_1] = com.fix_2sp[ThetaX_2sp];
+            com.fix[Theta5_2] = 0;
+            com.fix[ThetaY] = 0;
+            com.fix[ThetaZ] = com.fix_2sp[ThetaY_2sp];
+        }
+        else if (com.fixto0_2sp[PhiG2_2sp] && !com.fixto0_2sp[PhiG1_2sp]) {
+            intModel = M2_3;
+            com.fixto0[Phi12] = 1;
+            com.fixto0[Phi21] = 1;
+            com.fixto0[Phi13] = 1;
+            com.fixto0[Phi31] = 1;
+            com.fixto0[Phi23] = com.fixto0_2sp[PhiG1_2sp];
+            com.fixto0[Phi32] = 1;
+            com.fix[Theta5_4] = 0;
+            com.fix[Theta1_5] = 0;
+            com.fix[Theta2_5] = 0;
+            com.fix[Theta3_4] = 0;
+            com.fix[Theta5_1] = com.fix_2sp[ThetaY_2sp];
+            com.fix[Theta5_2] = 0;
+            com.fix[ThetaY] = 0;
+            com.fix[ThetaZ] = com.fix_2sp[ThetaX_2sp];
+        }
+        else
+            error2("MSci model not implemented yet");
+        break;
+    default:
+        intModel = extModel;
+    }
+
+    return intModel;
+}
+
 int ModelMap(int extModel)
 {
     enum { M12 = 0, M21, M13, M31, M23, M32, M53, M35, Phi12, Phi21, Phi13, Phi31, Phi23, Phi32 };
+    enum { Theta5_4 = 0, Theta1_5, Theta2_5, Theta3_4, Theta5_1, Theta5_2, ThetaX, ThetaY, ThetaZ, ThetaU, ThetaV, ThetaW };
     int intModel;
 
     switch (extModel)
     {
     case M2IM:
-        if(!com.fixto0[M53] || !com.fixto0[M35])
+#if defined(TEST_M2PROMAX)
+        if (com.simmodel)
+            intModel = M2SIM3s;
+        else
             intModel = M2ProMax;
-        else if (!com.fixto0[M13] || !com.fixto0[M31] || !com.fixto0[M23] || !com.fixto0[M32])
+#elif defined(TEST_M2PRO)
+        if (com.simmodel)
+            intModel = M2SIM3s;
+        else if (!com.fixto0[M53] || !com.fixto0[M35])
+            intModel = M2ProMax;
+        else
+            intModel = M2Pro;
+#else
+        if (com.simmodel)
+            intModel = M2SIM3s;
+        else if (!com.fixto0[M53] || !com.fixto0[M35])
+            intModel = M2ProMax;
+        else if (!com.fix[ThetaW] || !com.fixto0[M13] || !com.fixto0[M31] || !com.fixto0[M23] || !com.fixto0[M32])
             intModel = M2Pro;
         else
             intModel = M2SIM3s;
+#endif
         break;
     case M3MSci:
         if (com.fixto0[Phi13] && com.fixto0[Phi31] && com.fixto0[Phi23] && com.fixto0[Phi32])
@@ -385,7 +835,7 @@ int ModelMap(int extModel)
         else if ((!com.fixto0[Phi23] || !com.fixto0[Phi32]) && com.fixto0[Phi12] && com.fixto0[Phi21] && com.fixto0[Phi13] && com.fixto0[Phi31])
             intModel = M3MSci23;
         else
-            error2("model not implemented yet!");
+            error2("MSci model not implemented yet");
         break;
     default:
         intModel = extModel;
@@ -454,45 +904,90 @@ int SetupPopPopTable(int PrintTable)
 
 int ReadSpeciesTree(FILE* fctl, char *curline)
 {
-    int i, ifields[1000];
+    int i, j, ifields[1000];
 
     splitline(curline, ifields);
-    for (i = 0; i < stree.nspecies; i++)
+    for (i = 0; i < stree.nspecies; i++) {
         if (sscanf(curline + ifields[i + 1], "%s", stree.nodes[i].name) != 1)
             error2("species name?");
+        for (j = 0; j < i; j++)
+            if (strcmp(stree.nodes[j].name, stree.nodes[i].name) == 0) {
+                fprintf(stderr, "\nDuplicate species name %s.", stree.nodes[i].name);
+                error2("please fix the control file");
+            }
+    }
 
     printf("\n%d species: ", stree.nspecies);
     for (i = 0; i < stree.nspecies; i++)
         printf(" %s", stree.nodes[i].name);
     putchar('\n');
 
-    printf("((%s, %s), %s);", stree.nodes[0].name, stree.nodes[1].name, stree.nodes[2].name);
+    if (stree.nspecies == 3) {
+        printf("((%s, %s), %s);\n", stree.nodes[0].name, stree.nodes[1].name, stree.nodes[2].name);
 
-    stree.nnode = 2 * stree.nspecies - 1;
-    stree.nbranch = 2 * stree.nspecies - 2;
-    stree.root = stree.nspecies;
+        stree.nnode = 2 * stree.nspecies - 1;
+        stree.nbranch = 2 * stree.nspecies - 2;
+        stree.root = stree.nspecies;
 
-    stree.nodes[0].father = 4;
-    stree.nodes[0].nson = 0;
+        stree.nodes[0].father = 4;
+        stree.nodes[0].nson = 0;
 
-    stree.nodes[1].father = 4;
-    stree.nodes[1].nson = 0;
+        stree.nodes[1].father = 4;
+        stree.nodes[1].nson = 0;
 
-    stree.nodes[2].father = 3;
-    stree.nodes[2].nson = 0;
+        stree.nodes[2].father = 3;
+        stree.nodes[2].nson = 0;
 
-    stree.nodes[3].father = -1;
-    stree.nodes[3].nson = 2;
-    stree.nodes[3].sons[0] = 4;
-    stree.nodes[3].sons[1] = 2;
+        stree.nodes[3].father = -1;
+        stree.nodes[3].nson = 2;
+        stree.nodes[3].sons[0] = 4;
+        stree.nodes[3].sons[1] = 2;
 
-    stree.nodes[4].father = 3;
-    stree.nodes[4].nson = 2;
-    stree.nodes[4].sons[0] = 0;
-    stree.nodes[4].sons[1] = 1;
+        stree.nodes[4].father = 3;
+        stree.nodes[4].nson = 2;
+        stree.nodes[4].sons[0] = 0;
+        stree.nodes[4].sons[1] = 1;
 
-    DownSptreeSetSpnames(stree.root, 1);
-    SetupPopPopTable(1);
+        DownSptreeSetSpnames(stree.root, 1);
+        SetupPopPopTable(1);
+    }
+    else if (stree.nspecies == 2) {
+        printf("(%s, %s);\n", stree.nodes[0].name, stree.nodes[1].name);
+
+        stree.nnode = 2 * stree.nspecies - 1;
+        stree.nbranch = 2 * stree.nspecies - 2;
+        stree.root = stree.nspecies;
+
+        stree.nodes[0].father = 2;
+        stree.nodes[0].nson = 0;
+
+        stree.nodes[1].father = 2;
+        stree.nodes[1].nson = 0;
+
+        stree.nodes[2].father = -1;
+        stree.nodes[2].nson = 2;
+        stree.nodes[2].sons[0] = 0;
+        stree.nodes[2].sons[1] = 1;
+
+        DownSptreeSetSpnames(stree.root, 1);
+        printf("\n");
+        printf("species %2d %-10s \n", 1, stree.nodes[0].name);
+        printf("species %2d %-10s \n", 2, stree.nodes[1].name);
+        printf("species %2d %-10s \n", 0, stree.nodes[2].name);
+    }
+    else if (stree.nspecies == 1) {
+        printf("%s;\n", stree.nodes[0].name);
+
+        stree.nnode = 2 * stree.nspecies - 1;
+        stree.nbranch = 2 * stree.nspecies - 2;
+        stree.root = stree.nspecies - 1;
+
+        stree.nodes[0].father = -1;
+        stree.nodes[0].nson = 0;
+
+        printf("\n");
+        printf("species %2d %-10s \n", 1, stree.nodes[0].name);
+    }
 
     return(0);
 }
@@ -540,7 +1035,7 @@ int ReadSeqData(FILE*fout, char seqfile[], char ratefile[], int cleandata)
             for (j = 0; j < i; j++)
                 if (strcmp(Inames[j], Inames[i]) == 0) {
                     fprintf(stderr, "Duplicate individual label %s.", Inames[i]);
-                    error2("Please fix the Imap file.");
+                    error2("please fix the Imap file");
                 }
 
             for (j = 0; j < s; j++)
@@ -601,7 +1096,7 @@ int ReadSeqData(FILE*fout, char seqfile[], char ratefile[], int cleandata)
                 }
                 if(k==s) {
                     fprintf(stderr, "Individual label %s not found in the control file.", curname);
-                    error2("Please fix the control file or use Imap file.");
+                    error2("please fix the control file or use Imap file");
                 }
                 else {
                     im[j] = k + 1;
@@ -614,11 +1109,11 @@ int ReadSeqData(FILE*fout, char seqfile[], char ratefile[], int cleandata)
                 }
                 if(k==nind) {
                     fprintf(stderr, "Individual label %s not recognised.", curname);
-                    error2("Please fix the Imap file.");
+                    error2("please fix the Imap file");
                 }
                 else if(!Imap[k]) {
                     fprintf(stderr, "Individual label %s mapped to a species that is not found in the control file.", curname);
-                    error2("Please fix the Imap file.");
+                    error2("please fix the Imap file");
                 }
                 else {
                     im[j] = Imap[k];
@@ -741,7 +1236,7 @@ int ReadSeqData(FILE*fout, char seqfile[], char ratefile[], int cleandata)
     }
 
     data.twoSeqLoci = data.iStateCnt[0][27] + data.iStateCnt[0][28] + data.iStateCnt[0][29] + data.iStateCnt[0][31] + data.iStateCnt[0][32] + data.iStateCnt[0][35];
-    
+
     printf("\n\ninit state\t #loci\n");
     for (i=0; i<NALLSTATES; i++) {
         if (data.iStateCnt[0][i] > 0) {
@@ -809,7 +1304,7 @@ int ReadTreeData(FILE*fout, char treefile[])
             for (j = 0; j < i; j++)
                 if (strcmp(Inames[j], Inames[i]) == 0) {
                     fprintf(stderr, "Duplicate individual label %s.", Inames[i]);
-                    error2("Please fix the Imap file.");
+                    error2("please fix the Imap file");
                 }
 
             for (j = 0; j < s; j++)
@@ -882,7 +1377,7 @@ int ReadTreeData(FILE*fout, char treefile[])
                 }
                 if(k==s) {
                     fprintf(stderr, "Individual label %s not found in the control file.", curname);
-                    error2("Please fix the control file or use Imap file.");
+                    error2("please fix the control file or use Imap file");
                 }
                 else {
                     im[j] = k + 1;
@@ -895,11 +1390,11 @@ int ReadTreeData(FILE*fout, char treefile[])
                 }
                 if(k==nind) {
                     fprintf(stderr, "Individual label %s not recognised.", curname);
-                    error2("Please fix the Imap file.");
+                    error2("please fix the Imap file");
                 }
                 else if(!Imap[k]) {
                     fprintf(stderr, "Individual label %s mapped to a species that is not found in the control file.", curname);
-                    error2("Please fix the Imap file.");
+                    error2("please fix the Imap file");
                 }
                 else {
                     im[j] = Imap[k];
@@ -1118,12 +1613,12 @@ int Initialize3s(double space[])
 
 int InitializeGtreeTab() {
     int i, j;
-    struct BTEntry ** gtt = com.GtreeTab;
+    BTEntry ** gtt = com.GtreeTab;
     // initialize GtreeTab
     if(gtt[0]) free(gtt[0]);
-    gtt[0] = (struct BTEntry *) malloc(NINITIALSTATES*MAXGTREETYPES*sizeof(struct BTEntry)); // 111
+    gtt[0] = (BTEntry *) malloc(NINITIALSTATES*MAXGTREETYPES*sizeof(BTEntry)); // 111
     if(gtt[0] == NULL) error2("oom gtt[0]");
-    memset(gtt[0], 0, NINITIALSTATES*MAXGTREETYPES*sizeof(struct BTEntry));
+    memset(gtt[0], 0, NINITIALSTATES*MAXGTREETYPES*sizeof(BTEntry));
 
     gtt[13] = gtt[0]+MAXGTREETYPES;   // 222
     gtt[1] = gtt[13]+MAXGTREETYPES; // 112
@@ -1134,7 +1629,7 @@ int InitializeGtreeTab() {
     gtt[8] = gtt[5]+MAXGTREETYPES;  // 133/233
     gtt[17] = gtt[8]+MAXGTREETYPES;  // 233
     gtt[26] = gtt[17]+MAXGTREETYPES; // 333
-    
+
     if (com.model == M2Pro || com.model == M2ProMax) {
         for (j = 0; j < NINITIALSTATES; j++)
             for (i = 0; i < 6; i++)
@@ -1298,124 +1793,307 @@ int InitializeGtreeTab() {
     return 0;
 }
 
-int GetUVrootIM3s(double U[5*5], double V[5*5], double Root[5])
-{
-    /* This generates U, V, Root for Q for epoch E1.
-     */
-    double theta12=para[com.paraMap[4]], M12=para[com.paraMap[7]], c=2/theta12, m=4*M12/theta12;
-    double a=sqrt(c*c + 16*m*m);
-    //char *states[] = {"11", "12", "22", "1", "2"};
+int InitializeParaNames() {
+    enum { M12 = 0, M21, M13, M31, M23, M32, M53, M35, MG1, M1G, MG2, M2G, MXY, MYX };
 
-    U[0*5+0] = 1;  U[0*5+1] = -1;  U[0*5+2] = -1;  U[0*5+3] = 1;  U[0*5+4] = 1;
-    U[1*5+0] = 1;  U[1*5+1] =  0;  U[1*5+2] =  0;  U[1*5+3] = (c-a)/(4*m);  U[1*5+4] = (c+a)/(4*m);
-    U[2*5+0] = 1;  U[2*5+1] =  1;  U[2*5+2] =  1;  U[2*5+3] = 1;  U[2*5+4] = 1;
-    U[3*5+0] = 1;  U[3*5+1] =  0;  U[3*5+2] = -1;  U[3*5+3] = 0;  U[3*5+4] = 0;
-    U[4*5+0] = 1;  U[4*5+1] =  0;  U[4*5+2] =  1;  U[4*5+3] = 0;  U[4*5+4] = 0;
-
-    V[0*5+0] = 0;          V[0*5+1] =  0;      V[0*5+2] = 0;          V[0*5+3] = 0.5;               V[0*5+4] =  0.5;
-    V[1*5+0] = -0.5;       V[1*5+1] =  0;      V[1*5+2] = 0.5;        V[1*5+3] = 0.5;               V[1*5+4] = -0.5;
-    V[2*5+0] = 0;          V[2*5+1] =  0;      V[2*5+2] = 0;          V[2*5+3] = -0.5;              V[2*5+4] =  0.5;
-    V[3*5+0] = (1+c/a)/4;  V[3*5+1] = -2*m/a;  V[3*5+2] = (1+c/a)/4;  V[3*5+3] = -(c+a-4*m)/(4*a);  V[3*5+4] = -(c+a-4*m)/(4*a);
-    V[4*5+0] = (1-c/a)/4;  V[4*5+1] =  2*m/a;  V[4*5+2] = (1-c/a)/4;  V[4*5+3] =  (c-a-4*m)/(4*a);  V[4*5+4] =  (c-a-4*m)/(4*a);
-
-    Root[0] = 0;
-    Root[1] = -(2*m+c);
-    Root[2] = -2*m;
-    Root[3] = -(4*m + c + a)/2;
-    Root[4] = -(4*m + c - a)/2;
-    return(0);
-
-#if(0)
-    zero(Q, s*s);
-    Q[0*s+1] = 2*m1;     Q[0*s+3] = c1;
-    Q[1*s+0] = m2;       Q[1*s+2] = m1;
-    Q[2*s+1] = 2*m2;     Q[2*s+4] = c2;
-    Q[3*s+4] = m1;
-    Q[4*s+3] = m2;
-    for(i=0; i<s; i++)
-        Q[i*s+i] = -sum(Q+i*s, s);
-    matout(F0, Q, s, s);
-
-    if(debug==9) {
-        printf("\nQ & P(%.5f)\n", t);
-        matout2(F0, Q, s, s, 10, 6);
+    if (stree.nspecies == 3) {
+        if (com.model == M1DiscreteBeta) {
+            paranames[ 7] = "qbeta";
+        }
+        else if (com.model == M2SIM3s || com.model == M2Pro || com.model == M2ProMax) {
+            paranames[ 7] = "thetaW";
+            paranames[ 8] = Mnames[M12];
+            paranames[ 9] = Mnames[M21];
+            paranames[10] = Mnames[M13];
+            paranames[11] = Mnames[M31];
+            paranames[12] = Mnames[M23];
+            paranames[13] = Mnames[M32];
+            paranames[14] = Mnames[M53];
+            paranames[15] = Mnames[M35];
+        }
+        else if (com.model == M3MSci12) {
+            paranames[ 7] = "tauH";
+            paranames[ 8] = "thetaX";
+            paranames[ 9] = "thetaY";
+            paranames[10] = "phi12";
+            paranames[11] = "phi21";
+        }
+        else if (com.model == M3MSci13) {
+            paranames[ 7] = "tauH";
+            paranames[ 8] = "thetaX";
+            paranames[ 9] = "thetaZ";
+            paranames[10] = "phi13";
+            paranames[11] = "phi31";
+        }
+        else if (com.model == M3MSci23) {
+            paranames[ 7] = "tauH";
+            paranames[ 8] = "thetaY";
+            paranames[ 9] = "thetaZ";
+            paranames[10] = "phi23";
+            paranames[11] = "phi32";
+        }
+        if (com.simmodel) {
+            paranames[ 4] = "theta1&2";
+            paranames[ 8] = "M1&2";
+        }
     }
-    matexp(Q, t, s, (t>0.1 ? 31 : 7), space);
-    matout(F0, Q, s, s);
-#endif
 
-    return(0);
+    else if (stree.nspecies == 2) {
+        if (com.model_2sp == M0) {
+            paranames[ 0] = "theta0";
+        }
+        else if (com.model_2sp == M2_1) {
+            paranames[ 0] = "theta0";
+            paranames[ 8] = Mnames[M12];
+            paranames[ 9] = Mnames[M21];
+        }
+        else if (com.model_2sp == M2_2) {
+            paranames[ 0] = "theta0";
+            paranames[ 1] = "thetaX";
+            paranames[ 5] = "thetaG";
+            paranames[ 6] = "theta2";
+            paranames[ 7] = "thetaY";
+            paranames[12] = Mnames[MG2];
+            paranames[13] = Mnames[M2G];
+            paranames[14] = Mnames[MXY];
+            paranames[15] = Mnames[MYX];
+        }
+        else if (com.model_2sp == M2_3) {
+            paranames[ 0] = "theta0";
+            paranames[ 1] = "thetaY";
+            paranames[ 4] = "theta2";
+            paranames[ 5] = "thetaG";
+            paranames[ 6] = "theta1";
+            paranames[ 7] = "thetaX";
+            paranames[12] = Mnames[MG1];
+            paranames[13] = Mnames[M1G];
+            paranames[14] = Mnames[MYX];
+            paranames[15] = Mnames[MXY];
+        }
+        else if (com.model_2sp == M2_4) {
+            paranames[ 0] = "theta0";
+            paranames[ 1] = "thetaX";
+            paranames[ 6] = "theta2";
+            paranames[ 7] = "thetaY";
+            paranames[10] = Mnames[M12];
+            paranames[11] = Mnames[M21];
+            paranames[14] = Mnames[MXY];
+            paranames[15] = Mnames[MYX];
+        }
+        else if (com.model_2sp == M3_1) {
+            paranames[ 0] = "theta0";
+            paranames[ 7] = "tauH";
+            paranames[ 8] = "thetaX";
+            paranames[ 9] = "thetaY";
+            paranames[10] = "phi12";
+            paranames[11] = "phi21";
+        }
+        else if (com.model_2sp == M3_2) {
+            paranames[ 0] = "theta0";
+            paranames[ 1] = "thetaX";
+            paranames[ 6] = "theta2";
+            paranames[ 7] = "tauH";
+            paranames[ 8] = "thetaG";
+            paranames[ 9] = "thetaY";
+            paranames[10] = "phiG2";
+        }
+        else if (com.model_2sp == M3_3) {
+            paranames[ 0] = "theta0";
+            paranames[ 1] = "thetaY";
+            paranames[ 4] = "theta2";
+            paranames[ 6] = "theta1";
+            paranames[ 7] = "tauH";
+            paranames[ 8] = "thetaG";
+            paranames[ 9] = "thetaX";
+            paranames[10] = "phiG1";
+        }
+    }
+
+    else if (stree.nspecies == 1) {
+        paranames[0] = "theta";
+    }
+
+    return 0;
 }
 
-int GetPMatIM3s(double Pt[5*5], double t, double U[5*5], double V[5*5], double Root[5])
-{
-    /* P(t) = U * exp(Root*t) U.
-     */
-    int i, j, k, n=5;
-    double expt, uexpt, *pP;
+int InitializeIntModel(int runSptree[]) {
+    if (com.model == M0) {
+        com.nGtree = LENGTH_OF(GtOffsetM0);
+        com.maxnp = 7;
+    }
+    else if (com.model == M1DiscreteBeta) {
+        com.nGtree = LENGTH_OF(GtOffsetM0);
+        com.maxnp = 8;
+    }
+    else if (com.model == M2SIM3s) {
+        com.nGtree = LENGTH_OF(GtOffsetM2);
+        com.maxnp = 10;
+    }
+    else if (com.model == M2Pro) {
+        com.nGtree = LENGTH_OF(GtOffsetM2Pro);
+        com.maxnp = 14;
+    }
+    else if (com.model == M2ProMax) {
+        com.nGtree = LENGTH_OF(GtOffsetM2ProMax);
+        com.maxnp = 16;
+    }
+    else if (com.model == M3MSci12) {
+        com.nGtree = LENGTH_OF(GtOffsetM3MSci12);
+        com.maxnp = 12;
+    }
+    else if (com.model == M3MSci13) {
+        com.nGtree = LENGTH_OF(GtOffsetM3MSci13);
+        com.maxnp = 12;
+    }
+    else if (com.model == M3MSci23) {
+        com.nGtree = LENGTH_OF(GtOffsetM3MSci23);
+        com.maxnp = 12;
+    }
 
-    for (k=0,zero(Pt,n*n); k<n; k++)
-        for (i=0,pP=Pt,expt=exp(t*Root[k]); i<n; i++)
-            for (j=0,uexpt=U[i*n+k]*expt; j<n; j++)
-                *pP++ += uexpt*V[k*n+j];
+    memset(runSptree, 0, MAXSPTREES * sizeof(int));
 
-    return(0);
+    if (stree.nspecies == 3) {
+        if (stree.speciestree) {
+            runSptree[0] = 1;
+            runSptree[1] = 1;
+            runSptree[2] = 1;
+        }
+        else
+            runSptree[0] = 1;
+    }
+    else if (stree.nspecies == 2) {
+        if (com.model_2sp == M0 || com.model_2sp == M2_1 || com.model_2sp == M3_1)
+            runSptree[0] = 1;
+        else if (com.model_2sp == M2_2 || com.model_2sp == M2_4 || com.model_2sp == M3_2)
+            runSptree[1] = 1;
+        else if (com.model_2sp == M2_3 || com.model_2sp == M3_3)
+            runSptree[2] = 1;
+    }
+    else if (stree.nspecies == 1) {
+        runSptree[0] = 1;
+    }
+
+    return 0;
 }
 
-
-#if(0)
-int GenerateQIM3s(double Q[])
-{
-    /* This is not used right now since we only need the Q for a 5-state chain.
-     This generates Q1 and Q2 for epochs E1 and E2.
-     */
-    double tau0=0.05, tau1=0.025, q1=0.01, q2=0.02, q3=0.04, q4=0.04, q5=0.05, M1=0.01, M2=0.05;
-    double m1=M1, m2=M2, c1=2/q1, c2=2/q2, c3=2/q3, c5=2/q5;
-    int s1=17, s2=9, i, j;
-    char *statesE1[] = {"111", "112", "113", "122", "123", "133", "222", "223",
-        "233", "333", "11", "12", "13", "22", "23", "33", "1", "2", "3"};
-    char *statesE2[] = {"333", "335", "355", "555", "33", "35", "55", "3", "5"};
-
-    zero(Q1, s1);
-    zero(Q2, s2);
-
-    Q1[ 0*s1+ 1] = 3*m1;     Q1[ 0*s1+10] = 3*c1;
-    Q1[ 1*s1+ 0] = m2;       Q1[ 1*s1+ 3] = 2*m1;    Q1[ 1*s1+11] = c1;
-    Q1[ 2*s1+ 4] = 2*m1;     Q1[ 2*s1+12] = c1;
-    Q1[ 3*s1+ 1] = 2*m1;     Q1[ 3*s1+ 6] = m1;      Q1[ 3*s1+11] = c2;
-    Q1[ 4*s1+ 2] = m2;       Q1[ 4*s1+ 7] = m1;
-    Q1[ 5*s1+ 8] = m1;       Q1[ 5*s1+12] = c3;
-    Q1[ 6*s1+ 3] = 3*m2;     Q1[ 6*s1+13] = 3*c2;
-    Q1[ 7*s1+ 4] = 2*m2;     Q1[ 7*s1+14] = c2;
-    Q1[ 8*s1+ 5] = 2*m2;     Q1[ 8*s1+14] = c3;
-    Q1[ 9*s1+15] = 3*c3;
-    Q1[10*s1+11] = 2*m1;     Q1[10*s1+16] = c1;
-    Q1[11*s1+10] = m2;       Q1[11*s1+13] = m1;
-    Q1[12*s1+14] = m1;
-    Q1[13*s1+11] = 2*m2;     Q1[13*s1+17] = c2;
-    Q1[14*s1+12] = m2;
-    Q1[15*s1+18] = c3;
-    Q1[16*s1+17] = m1;
-    Q1[17*s1+16] = m2;
-
-    for(i=0; i<s1; i++)
-        Q1[i*s1+i] = -sum(Q1+i*s1, s1);
-    matout2(F0, Q1, s1, s1, 8, 3);
-
-    Q2[0*s2+4] = 3*c3;
-    Q2[1*s2+5] = c3;
-    Q2[2*s2+5] = c5;
-    Q2[3*s2+6] = 3*c5;
-    Q2[4*s2+7] = c3;
-    Q2[6*s2+8] = c5;
-
-    for(i=0; i<s2; i++)
-        Q2[i*s2+i] = -sum(Q2+i*s2, s2);
-    matout2(F0, Q2, s2, s2, 8, 3);
-
-    return(0);
-}
-#endif
+//int GetUVrootIM3s(double U[5*5], double V[5*5], double Root[5])
+//{
+//    /* This generates U, V, Root for Q for epoch E1.
+//     */
+//    double theta12=para[com.paraMap[4]], M12=para[com.paraMap[7]], c=2/theta12, m=4*M12/theta12;
+//    double a=sqrt(c*c + 16*m*m);
+//    //char *states[] = {"11", "12", "22", "1", "2"};
+//
+//    U[0*5+0] = 1;  U[0*5+1] = -1;  U[0*5+2] = -1;  U[0*5+3] = 1;  U[0*5+4] = 1;
+//    U[1*5+0] = 1;  U[1*5+1] =  0;  U[1*5+2] =  0;  U[1*5+3] = (c-a)/(4*m);  U[1*5+4] = (c+a)/(4*m);
+//    U[2*5+0] = 1;  U[2*5+1] =  1;  U[2*5+2] =  1;  U[2*5+3] = 1;  U[2*5+4] = 1;
+//    U[3*5+0] = 1;  U[3*5+1] =  0;  U[3*5+2] = -1;  U[3*5+3] = 0;  U[3*5+4] = 0;
+//    U[4*5+0] = 1;  U[4*5+1] =  0;  U[4*5+2] =  1;  U[4*5+3] = 0;  U[4*5+4] = 0;
+//
+//    V[0*5+0] = 0;          V[0*5+1] =  0;      V[0*5+2] = 0;          V[0*5+3] = 0.5;               V[0*5+4] =  0.5;
+//    V[1*5+0] = -0.5;       V[1*5+1] =  0;      V[1*5+2] = 0.5;        V[1*5+3] = 0.5;               V[1*5+4] = -0.5;
+//    V[2*5+0] = 0;          V[2*5+1] =  0;      V[2*5+2] = 0;          V[2*5+3] = -0.5;              V[2*5+4] =  0.5;
+//    V[3*5+0] = (1+c/a)/4;  V[3*5+1] = -2*m/a;  V[3*5+2] = (1+c/a)/4;  V[3*5+3] = -(c+a-4*m)/(4*a);  V[3*5+4] = -(c+a-4*m)/(4*a);
+//    V[4*5+0] = (1-c/a)/4;  V[4*5+1] =  2*m/a;  V[4*5+2] = (1-c/a)/4;  V[4*5+3] =  (c-a-4*m)/(4*a);  V[4*5+4] =  (c-a-4*m)/(4*a);
+//
+//    Root[0] = 0;
+//    Root[1] = -(2*m+c);
+//    Root[2] = -2*m;
+//    Root[3] = -(4*m + c + a)/2;
+//    Root[4] = -(4*m + c - a)/2;
+//    return(0);
+//
+//#if(0)
+//    zero(Q, s*s);
+//    Q[0*s+1] = 2*m1;     Q[0*s+3] = c1;
+//    Q[1*s+0] = m2;       Q[1*s+2] = m1;
+//    Q[2*s+1] = 2*m2;     Q[2*s+4] = c2;
+//    Q[3*s+4] = m1;
+//    Q[4*s+3] = m2;
+//    for(i=0; i<s; i++)
+//        Q[i*s+i] = -sum(Q+i*s, s);
+//    matout(F0, Q, s, s);
+//
+//    if(debug==9) {
+//        printf("\nQ & P(%.5f)\n", t);
+//        matout2(F0, Q, s, s, 10, 6);
+//    }
+//    matexp(Q, t, s, (t>0.1 ? 31 : 7), space);
+//    matout(F0, Q, s, s);
+//#endif
+//
+//    return(0);
+//}
+//
+//int GetPMatIM3s(double Pt[5*5], double t, double U[5*5], double V[5*5], double Root[5])
+//{
+//    /* P(t) = U * exp(Root*t) U.
+//     */
+//    int i, j, k, n=5;
+//    double expt, uexpt, *pP;
+//
+//    for (k=0,zero(Pt,n*n); k<n; k++)
+//        for (i=0,pP=Pt,expt=exp(t*Root[k]); i<n; i++)
+//            for (j=0,uexpt=U[i*n+k]*expt; j<n; j++)
+//                *pP++ += uexpt*V[k*n+j];
+//
+//    return(0);
+//}
+//
+//
+//#if(0)
+//int GenerateQIM3s(double Q[])
+//{
+//    /* This is not used right now since we only need the Q for a 5-state chain.
+//     This generates Q1 and Q2 for epochs E1 and E2.
+//     */
+//    double tau0=0.05, tau1=0.025, q1=0.01, q2=0.02, q3=0.04, q4=0.04, q5=0.05, M1=0.01, M2=0.05;
+//    double m1=M1, m2=M2, c1=2/q1, c2=2/q2, c3=2/q3, c5=2/q5;
+//    int s1=17, s2=9, i, j;
+//    char *statesE1[] = {"111", "112", "113", "122", "123", "133", "222", "223",
+//        "233", "333", "11", "12", "13", "22", "23", "33", "1", "2", "3"};
+//    char *statesE2[] = {"333", "335", "355", "555", "33", "35", "55", "3", "5"};
+//
+//    zero(Q1, s1);
+//    zero(Q2, s2);
+//
+//    Q1[ 0*s1+ 1] = 3*m1;     Q1[ 0*s1+10] = 3*c1;
+//    Q1[ 1*s1+ 0] = m2;       Q1[ 1*s1+ 3] = 2*m1;    Q1[ 1*s1+11] = c1;
+//    Q1[ 2*s1+ 4] = 2*m1;     Q1[ 2*s1+12] = c1;
+//    Q1[ 3*s1+ 1] = 2*m1;     Q1[ 3*s1+ 6] = m1;      Q1[ 3*s1+11] = c2;
+//    Q1[ 4*s1+ 2] = m2;       Q1[ 4*s1+ 7] = m1;
+//    Q1[ 5*s1+ 8] = m1;       Q1[ 5*s1+12] = c3;
+//    Q1[ 6*s1+ 3] = 3*m2;     Q1[ 6*s1+13] = 3*c2;
+//    Q1[ 7*s1+ 4] = 2*m2;     Q1[ 7*s1+14] = c2;
+//    Q1[ 8*s1+ 5] = 2*m2;     Q1[ 8*s1+14] = c3;
+//    Q1[ 9*s1+15] = 3*c3;
+//    Q1[10*s1+11] = 2*m1;     Q1[10*s1+16] = c1;
+//    Q1[11*s1+10] = m2;       Q1[11*s1+13] = m1;
+//    Q1[12*s1+14] = m1;
+//    Q1[13*s1+11] = 2*m2;     Q1[13*s1+17] = c2;
+//    Q1[14*s1+12] = m2;
+//    Q1[15*s1+18] = c3;
+//    Q1[16*s1+17] = m1;
+//    Q1[17*s1+16] = m2;
+//
+//    for(i=0; i<s1; i++)
+//        Q1[i*s1+i] = -sum(Q1+i*s1, s1);
+//    matout2(F0, Q1, s1, s1, 8, 3);
+//
+//    Q2[0*s2+4] = 3*c3;
+//    Q2[1*s2+5] = c3;
+//    Q2[2*s2+5] = c5;
+//    Q2[3*s2+6] = 3*c5;
+//    Q2[4*s2+7] = c3;
+//    Q2[6*s2+8] = c5;
+//
+//    for(i=0; i<s2; i++)
+//        Q2[i*s2+i] = -sum(Q2+i*s2, s2);
+//    matout2(F0, Q2, s2, s2, 8, 3);
+//
+//    return(0);
+//}
+//#endif
 
 /* returns Q matrix for chain 1 or 2 in Q, depending on the number of
  * states (nStates): chain 1: 21 x 21 matrix
@@ -1458,7 +2136,7 @@ int GenerateQ1SIM3S(double Q[], int nStates, double theta1, double theta2, doubl
         // chain 1
         // order of states: 111 112 122 222 11 12 22 1&2
         //                   0   1   2   3   4  5  6  7
-        
+
         Q[1] = 3 * w21;
         Q[4] = 3 * c1;
         Q[nStates] = w12;
@@ -1475,7 +2153,7 @@ int GenerateQ1SIM3S(double Q[], int nStates, double theta1, double theta2, doubl
         Q[5*nStates+6] = w21;
         Q[6*nStates+5] = 2 * w12;
         Q[6*nStates+7] = c2;
-        
+
 //    } else if(nStates == 10) {
 //        // chain 3
 //        // order of states: 113, 123, 223, 133, 233, 333, 13, 23, 33, 3
@@ -1843,46 +2521,118 @@ int GetParaMap() {
     int ss13 = iStateCnt[29]; // 13
     int ss23 = iStateCnt[32]; // 23
 
-    enum { M12 = 0, M21, M13, M31, M23, M32, M53, M35, Phi12, Phi21, Phi13, Phi31, Phi23, Phi32, ThetaX = 0, ThetaY, ThetaZ };
+    enum { M12 = 0, M21, M13, M31, M23, M32, M53, M35, Phi12, Phi21, Phi13, Phi31, Phi23, Phi32 };
+    enum { Theta5_4 = 0, Theta1_5, Theta2_5, Theta3_4, Theta5_1, Theta5_2, ThetaX, ThetaY, ThetaZ, ThetaU, ThetaV, ThetaW };
 
     memset(com.paraMap, -1, MAXPARAMETERS*sizeof(int));
     memset(com.paraNamesMap, -1, MAXPARAMETERS*sizeof(int));
-    
+
     // theta4 is always estimable
     com.paraNamesMap[np] = 0;
     com.paraMap[0] = np++;
+
     // theta5 is estimable if there are >=2 sequences from species 1/2
-    if (s11 + s22 + s12_3
+    if (com.fix[Theta5_4] || com.fix[Theta5_1] || com.fix[Theta5_2]) {
+        if (com.fix[Theta5_4])
+            com.paraMap[1] = com.paraMap[0];
+    }
+    else if (s11 + s22 + s12_3
         || com.model == M3MSci13 && !com.fixto0[Phi13]
         || com.model == M3MSci23 && !com.fixto0[Phi23]
-        || com.model == M2Pro && !(com.fixto0[M13] && com.fixto0[M23])
-        || com.model == M2ProMax && !(com.fixto0[M13] && com.fixto0[M23] && com.fixto0[M53])) {
+        || com.model == M2ProMax && !com.fixto0[M53]
+        || (com.model == M2Pro || com.model == M2ProMax) && !(com.fixto0[M13] && com.fixto0[M23])) {
         com.paraNamesMap[np] = 1;
         com.paraMap[1] = np++;
     }
+
     // tau0 is always estimable
-    com.paraNamesMap[np] = 2;
-    com.paraMap[2] = np++;
-    // tau1 is estimable if there are >=2 sequences from species 1/2
-    if (s11 + s22 + s12_3
-        || com.model == M3MSci13 && !com.fixto0[Phi13]
-        || com.model == M3MSci23 && !com.fixto0[Phi23]
-        || com.model == M2Pro && !(com.fixto0[M13] && com.fixto0[M23])
-        || com.model == M2ProMax && !(com.fixto0[M13] && com.fixto0[M23])) {
-        com.paraNamesMap[np] = 3;
-        com.paraMap[3] = np++;
+    if (s13 + s23
+        || !com.fix[Theta5_4] && s11 + s22 + s12
+        || !com.fix[Theta3_4] && s33_3
+        || com.model == M2ProMax && (
+               !com.fixto0[M35] && s11 + s22 + s12
+            || !com.fixto0[M53] && s33_3)
+        || (com.model == M2Pro || com.model == M2ProMax) && (
+               !(com.fix[ThetaW] && com.fixto0[M13] && com.fixto0[M23]) && s33_3
+            || !com.fixto0[M31] && s11 + s12
+            || !com.fixto0[M32] && s22 + s12
+            || !com.fixto0[M32] && !com.fixto0[M21] && s11_1
+            || !com.fixto0[M31] && !com.fixto0[M12] && s22_2)
+        || com.model == M3MSci13 && (
+               !(com.fix[ThetaZ] && com.fixto0[Phi13]) && s33_3
+            || !com.fixto0[Phi31] && s11 + s12)
+        || com.model == M3MSci23 && (
+               !(com.fix[ThetaZ] && com.fixto0[Phi23]) && s33_3
+            || !com.fixto0[Phi32] && s22 + s12)) {
+        com.paraNamesMap[np] = 2;
+        com.paraMap[2] = np++;
     }
-    if (com.simmodel && (s11 + s22 || (com.model == M2SIM3s && !com.fixto0[M12] && s12_3))) {
+
+    // tau1 is estimable if there are >=2 sequences from species 1/2
+    if (s12
+        || !com.fix[Theta1_5] && !com.fix[Theta5_1] && s11
+        || !com.fix[Theta2_5] && !com.fix[Theta5_2] && s22
+        || com.model == M2ProMax && (
+               !com.fixto0[M35] && s11 + s22 + s13 + s23
+            || !com.fixto0[M53] && s33 + s13 + s23)
+        || (com.model == M2Pro || com.model == M2ProMax) && (
+               !com.fixto0[M31] && s11 + s13
+            || !com.fixto0[M32] && s22 + s23
+            || !(com.fixto0[M13] && com.fixto0[M23]) && s33 + s13 + s23
+            || !com.fixto0[M32] && !com.fixto0[M21] && s13_3
+            || !com.fixto0[M31] && !com.fixto0[M12] && s23_3)
+        || (com.model == M2SIM3s || com.model == M2Pro || com.model == M2ProMax) && (
+               !com.fixto0[M21] && s11
+            || !com.fixto0[M12] && s22)
+        || com.model == M3MSci12 && (
+               !(com.fix[ThetaX] && com.fixto0[Phi21]) && s11
+            || !(com.fix[ThetaY] && com.fixto0[Phi12]) && s22)
+        || com.model == M3MSci13 && (
+               !com.fix[ThetaX] && s11
+            || !com.fixto0[Phi31] && s11 + s13
+            || !com.fixto0[Phi13] && s33 + s13 + s23)
+        || com.model == M3MSci23 && (
+               !com.fix[ThetaY] && s22
+            || !com.fixto0[Phi32] && s22 + s23
+            || !com.fixto0[Phi23] && s33 + s13 + s23)) {
+        if (com.paraMap[2] == -1) {
+            com.paraNamesMap[np] = 2;
+            com.paraMap[2] = np++;
+        }
+        else {
+            com.paraNamesMap[np] = 3;
+            com.paraMap[3] = np++;
+        }
+    }
+
+    if (com.simmodel) {
         // theta1&2 is estimable if there are >= 2 sequences from species 1 / 2
-        com.paraNamesMap[np] = 4;
-        com.paraMap[5] = com.paraMap[4] = np++;
-    } else if (!com.simmodel) {
+        if (com.fix[Theta1_5]) {
+            com.paraMap[5] = com.paraMap[4] = com.paraMap[1];
+        }
+        else if (s11 + s22
+            || com.fix[Theta5_1] && s12_3
+            || com.model == M2SIM3s && !com.fixto0[M12] && s12_3) {
+            com.paraNamesMap[np] = 4;
+            com.paraMap[5] = com.paraMap[4] = np++;
+        }
+    }
+    else {
         // theta1 is estimable if there are >= 2 sequences from species 1
-        if (s11 || (com.model == M2SIM3s && !com.fixto0[M12] && s22 + s12_3)
-            || (com.model == M3MSci12 && com.fix[ThetaX] && !com.fixto0[Phi12] && s22 + s12_3)
-            || (com.model == M3MSci13 && com.fix[ThetaX] && !com.fixto0[Phi13] && s33 + s13_2)
+        if (com.fix[Theta1_5]) {
+            com.paraMap[4] = com.paraMap[1];
+        }
+        else if (s11
+            || com.fix[Theta5_1] && s22 + s12_3
+            || com.model == M2SIM3s && !com.fixto0[M12] && s22 + s12_3
+            || com.model == M3MSci12 && com.fix[ThetaX] && !com.fixto0[Phi12] && s22 + s12_3
+            || com.model == M3MSci13 && com.fix[ThetaX] && !com.fixto0[Phi13] && s33 + s13_2
+            || com.model == M3MSci13 && com.fix[Theta5_1] && !com.fixto0[Phi13]
+            || com.model == M3MSci23 && com.fix[Theta5_1] && !com.fixto0[Phi23]
+            || com.model == M2ProMax && com.fix[Theta5_1] && !com.fixto0[M53]
             || (com.model == M2Pro || com.model == M2ProMax) && (
-                   !com.fixto0[M12] && s22 + s12_3
+                   com.fix[Theta5_1] && !(com.fixto0[M13] && com.fixto0[M23])
+                || !com.fixto0[M12] && s22 + s12_3
                 || !com.fixto0[M13] && s33 + s13_2
                 || !com.fixto0[M32] && !com.fixto0[M13] && s22 + s2k
                 || !com.fixto0[M23] && !com.fixto0[M12] && s33 + s3k
@@ -1891,11 +2641,20 @@ int GetParaMap() {
             com.paraMap[4] = np++;
         }
         // theta2 is estimable if there are >= 2 sequences from species 2
-        if (s22 || (com.model == M2SIM3s && !com.fixto0[M21] && s11 + s12_3)
-            || (com.model == M3MSci12 && com.fix[ThetaY] && !com.fixto0[Phi21] && s11 + s12_3)
-            || (com.model == M3MSci23 && com.fix[ThetaY] && !com.fixto0[Phi23] && s33 + s23_1)
+        if (com.fix[Theta2_5]) {
+            com.paraMap[5] = com.paraMap[1];
+        }
+        else if (s22
+            || com.fix[Theta5_2] && s11 + s12_3
+            || com.model == M2SIM3s && !com.fixto0[M21] && s11 + s12_3
+            || com.model == M3MSci12 && com.fix[ThetaY] && !com.fixto0[Phi21] && s11 + s12_3
+            || com.model == M3MSci23 && com.fix[ThetaY] && !com.fixto0[Phi23] && s33 + s23_1
+            || com.model == M3MSci13 && com.fix[Theta5_2] && !com.fixto0[Phi13]
+            || com.model == M3MSci23 && com.fix[Theta5_2] && !com.fixto0[Phi23]
+            || com.model == M2ProMax && com.fix[Theta5_2] && !com.fixto0[M53]
             || (com.model == M2Pro || com.model == M2ProMax) && (
-                   !com.fixto0[M21] && s11 + s12_3
+                   com.fix[Theta5_2] && !(com.fixto0[M13] && com.fixto0[M23])
+                || !com.fixto0[M21] && s11 + s12_3
                 || !com.fixto0[M23] && s33 + s23_1
                 || !com.fixto0[M31] && !com.fixto0[M23] && s11 + s1k
                 || !com.fixto0[M13] && !com.fixto0[M21] && s33 + s3k
@@ -1905,10 +2664,13 @@ int GetParaMap() {
         }
     }
     // theta3 is estimable if there are >= 2 sequences from species 3
-    if (s33
-        || (com.model == M3MSci13 && com.fix[ThetaZ] && !com.fixto0[Phi31] && s11 + s13_2)
-        || (com.model == M3MSci23 && com.fix[ThetaZ] && !com.fixto0[Phi32] && s22 + s23_1)
-        || com.model == M2ProMax && !com.fixto0[M35]
+    if (com.fix[Theta3_4]) {
+        com.paraMap[6] = com.paraMap[0];
+    }
+    else if (s33
+        || com.model == M3MSci13 && com.fix[ThetaZ] && !com.fixto0[Phi31] && s11 + s13_2
+        || com.model == M3MSci23 && com.fix[ThetaZ] && !com.fixto0[Phi32] && s22 + s23_1
+        || com.model == M2ProMax && com.fix[ThetaW] && !com.fixto0[M35]
         || (com.model == M2Pro || com.model == M2ProMax) && (
                !com.fixto0[M31] && s11 + s13_2
             || !com.fixto0[M32] && s22 + s23_1
@@ -1918,25 +2680,46 @@ int GetParaMap() {
         com.paraNamesMap[np] = 6;
         com.paraMap[6] = np++;
     }
+
+    if (com.simmodel) {
+        if (com.fix[Theta5_1])
+            com.paraMap[1] = com.paraMap[4];
+    }
+    else {
+        if (com.fix[Theta5_1]) {
+            com.paraMap[1] = com.paraMap[4];
+            if (com.fix[Theta2_5])
+                com.paraMap[5] = com.paraMap[1];
+        }
+        if (com.fix[Theta5_2]) {
+            com.paraMap[1] = com.paraMap[5];
+            if (com.fix[Theta1_5])
+                com.paraMap[4] = com.paraMap[1];
+        }
+    }
+
     // beta parameter is always estimable under M1
-    if (com.model == M1DiscreteBeta) {
+    if (com.model == M1DiscreteBeta && (
+           s12
+        || !com.fix[Theta1_5] && !com.fix[Theta5_1] && s11
+        || !com.fix[Theta2_5] && !com.fix[Theta5_2] && s22)) {
         com.paraNamesMap[np] = 7;
         com.paraMap[7] = np++;
     // M1&2 is estimable if there are >=2 sequences of species 1/2
     } else if (com.model == M2SIM3s && s11 + s22 + s12_3) {
         if (com.simmodel && !com.fixto0[M12]) {
-            com.paraNamesMap[np] = 7;
-            com.paraMap[8] = com.paraMap[7] = np++;
+            com.paraNamesMap[np] = 8;
+            com.paraMap[9] = com.paraMap[8] = np++;
         }
         // M21 is estimable if model is not symmetric
         else if (!com.simmodel) {
             if (!com.fixto0[M12] && (s22 + s12 || !com.fixto0[M21] && s11)) {
-                com.paraNamesMap[np] = 7;
-                com.paraMap[7] = np++;
-            }
-            if (!com.fixto0[M21] && (s11 + s12 || !com.fixto0[M12] && s22)) {
                 com.paraNamesMap[np] = 8;
                 com.paraMap[8] = np++;
+            }
+            if (!com.fixto0[M21] && (s11 + s12 || !com.fixto0[M12] && s22)) {
+                com.paraNamesMap[np] = 9;
+                com.paraMap[9] = np++;
             }
         }
     // T and p are estimable if there are >= 2 sequences from species 1
@@ -1947,11 +2730,17 @@ int GetParaMap() {
             com.paraNamesMap[np] = 7;
             com.paraMap[7] = np++;
         }
-        if (!com.fix[ThetaX] && (s11 || !com.fixto0[Phi12] && s22 + s12_3)) {
+        if (com.fix[ThetaX]) {
+            com.paraMap[8] = com.paraMap[4];
+        }
+        else if (s11 || !com.fixto0[Phi12] && s22 + s12_3) {
             com.paraNamesMap[np] = 8;
             com.paraMap[8] = np++;
         }
-        if (!com.fix[ThetaY] && (s22 || !com.fixto0[Phi21] && s11 + s12_3)) {
+        if (com.fix[ThetaY]) {
+            com.paraMap[9] = com.paraMap[5];
+        }
+        else if (s22 || !com.fixto0[Phi21] && s11 + s12_3) {
             com.paraNamesMap[np] = 9;
             com.paraMap[9] = np++;
         }
@@ -1970,11 +2759,17 @@ int GetParaMap() {
             com.paraNamesMap[np] = 7;
             com.paraMap[7] = np++;
         }
-        if (!com.fix[ThetaX] && (s11 || !com.fixto0[Phi13] && s33 + s13_2)) {
+        if (com.fix[ThetaX]) {
+            com.paraMap[8] = com.paraMap[4];
+        }
+        else if (s11 || !com.fixto0[Phi13] && s33 + s13_2) {
             com.paraNamesMap[np] = 8;
             com.paraMap[8] = np++;
         }
-        if (!com.fix[ThetaZ] && (s33 || !com.fixto0[Phi31] && s11 + s13_2)) {
+        if (com.fix[ThetaZ]) {
+            com.paraMap[9] = com.paraMap[6];
+        }
+        else if (s33 || !com.fixto0[Phi31] && s11 + s13_2) {
             com.paraNamesMap[np] = 9;
             com.paraMap[9] = np++;
         }
@@ -1993,11 +2788,17 @@ int GetParaMap() {
             com.paraNamesMap[np] = 7;
             com.paraMap[7] = np++;
         }
-        if (!com.fix[ThetaY] && (s22 || !com.fixto0[Phi23] && s33 + s23_1)) {
+        if (com.fix[ThetaY]) {
+            com.paraMap[8] = com.paraMap[5];
+        }
+        else if (s22 || !com.fixto0[Phi23] && s33 + s23_1) {
             com.paraNamesMap[np] = 8;
             com.paraMap[8] = np++;
         }
-        if (!com.fix[ThetaZ] && (s33 || !com.fixto0[Phi32] && s22 + s23_1)) {
+        if (com.fix[ThetaZ]) {
+            com.paraMap[9] = com.paraMap[6];
+        }
+        else if (s33 || !com.fixto0[Phi32] && s22 + s23_1) {
             com.paraNamesMap[np] = 9;
             com.paraMap[9] = np++;
         }
@@ -2010,6 +2811,19 @@ int GetParaMap() {
             com.paraMap[11] = np++;
         }
     } else if (com.model == M2Pro || com.model == M2ProMax) {
+        if (com.fix[ThetaW]) {
+            com.paraMap[7] = com.paraMap[6];
+        }
+        else if (s33
+            || !com.fixto0[M31] && s11 + s13_2
+            || !com.fixto0[M32] && s22 + s23_1
+            || !com.fixto0[M21] && !com.fixto0[M32] && s11 + s1k
+            || !com.fixto0[M12] && !com.fixto0[M31] && s22 + s2k
+            || !com.fixto0[M31] && !com.fixto0[M32] && ss12
+            || com.model == M2ProMax && !com.fixto0[M35]) {
+            com.paraNamesMap[np] = 7;
+            com.paraMap[7] = np++;
+        }
         if (!com.fixto0[M12] && (
                s22 + s12
             || !com.fixto0[M21] && s11
@@ -2017,8 +2831,8 @@ int GetParaMap() {
             || !com.fixto0[M13] && s23_3
             || !com.fixto0[M31] && !com.fixto0[M23] && s11_1
             || !com.fixto0[M13] && !com.fixto0[M21] && s33_3 + s13_3)) {
-            com.paraNamesMap[np] = 7;
-            com.paraMap[7] = np++;
+            com.paraNamesMap[np] = 8;
+            com.paraMap[8] = np++;
         }
         if (!com.fixto0[M21] && (
                s11 + s12
@@ -2027,8 +2841,8 @@ int GetParaMap() {
             || !com.fixto0[M23] && s13_3
             || !com.fixto0[M32] && !com.fixto0[M13] && s22_2
             || !com.fixto0[M23] && !com.fixto0[M12] && s33_3 + s23_3)) {
-            com.paraNamesMap[np] = 8;
-            com.paraMap[8] = np++;
+            com.paraNamesMap[np] = 9;
+            com.paraMap[9] = np++;
         }
         if (!com.fixto0[M13] && (
                s33 + s13
@@ -2037,8 +2851,8 @@ int GetParaMap() {
             || !com.fixto0[M12] && s23_2
             || !com.fixto0[M21] && !com.fixto0[M32] && s11_1
             || !com.fixto0[M12] && !com.fixto0[M31] && s22_2 + s12_2)) {
-            com.paraNamesMap[np] = 9;
-            com.paraMap[9] = np++;
+            com.paraNamesMap[np] = 10;
+            com.paraMap[10] = np++;
         }
         if (!com.fixto0[M31] && (
                s11 + s13
@@ -2047,8 +2861,8 @@ int GetParaMap() {
             || !com.fixto0[M32] && s12_2
             || !com.fixto0[M23] && !com.fixto0[M12] && s33_3
             || !com.fixto0[M32] && !com.fixto0[M13] && s22_2 + s23_2)) {
-            com.paraNamesMap[np] = 10;
-            com.paraMap[10] = np++;
+            com.paraNamesMap[np] = 11;
+            com.paraMap[11] = np++;
         }
         if (!com.fixto0[M23] && (
                s33 + s23
@@ -2057,8 +2871,8 @@ int GetParaMap() {
             || !com.fixto0[M21] && s13_1
             || !com.fixto0[M12] && !com.fixto0[M31] && s22_2
             || !com.fixto0[M21] && !com.fixto0[M32] && s11_1 + s12_1)) {
-            com.paraNamesMap[np] = 11;
-            com.paraMap[11] = np++;
+            com.paraNamesMap[np] = 12;
+            com.paraMap[12] = np++;
         }
         if (!com.fixto0[M32] && (
                s22 + s23
@@ -2067,8 +2881,8 @@ int GetParaMap() {
             || !com.fixto0[M31] && s12_1
             || !com.fixto0[M13] && !com.fixto0[M21] && s33_3
             || !com.fixto0[M31] && !com.fixto0[M23] && s11_1 + s13_1)) {
-            com.paraNamesMap[np] = 12;
-            com.paraMap[12] = np++;
+            com.paraNamesMap[np] = 13;
+            com.paraMap[13] = np++;
         }
 
         if (com.model == M2ProMax) {
@@ -2079,14 +2893,124 @@ int GetParaMap() {
                 || !com.fixto0[M32] && s22_2 + s12
                 || !com.fixto0[M21] && !com.fixto0[M32] && s11_1
                 || !com.fixto0[M12] && !com.fixto0[M31] && s22_2)) {
-                com.paraNamesMap[np] = 13;
-                com.paraMap[13] = np++;
+                com.paraNamesMap[np] = 14;
+                com.paraMap[14] = np++;
             }
             if (!com.fixto0[M35] && (
                    s11 + s22 + s12_3 + s13_3 + s23_3
                 || !(com.fixto0[M13] && com.fixto0[M23] && com.fixto0[M53]) && s33_3)) {
-                com.paraNamesMap[np] = 14;
-                com.paraMap[14] = np++;
+                com.paraNamesMap[np] = 15;
+                com.paraMap[15] = np++;
+            }
+        }
+    }
+
+#define NA -1
+    static int paraPrintOrder[][MAXPARAMETERS] = {
+        { 0, NA, 1, NA, 2,  3, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA },
+        { 0 },
+        { 0, NA, 1, NA, 2,  3, NA, NA,  4,  5, NA, NA, NA, NA, NA, NA },
+        { 0,  4, 1,  7, 2,  6,  3,  5, NA, NA, NA, NA,  8,  9, 10, 11 },
+        { 0,  5, 1,  7, 3,  6,  2,  4, NA, NA, NA, NA,  8,  9, 11, 10 },
+        { 0,  4, 1,  6, 2, NA,  3,  5, NA, NA,  7,  8, NA, NA,  9, 10 },
+        { 0, NA, 1, NA, 2,  3, NA,  6,  4,  5,  7,  8, NA, NA, NA, NA },
+        { 0,  4, 1,  7, 2, NA,  3,  8,  6,  5,  9, NA, NA, NA, NA, NA },
+        { 0,  5, 1,  7, 3, NA,  2,  8,  6,  4, NA,  9, NA, NA, NA, NA }};
+#undef NA
+    int i, j, tmp[MAXPARAMETERS];
+
+    if (stree.nspecies != 2) {
+        for (i = 0; i < np; i++)
+            com.printMap[i] = i;
+    }
+    else {
+        memset(tmp, -1, com.maxnp * sizeof(int));
+        for (i = 0; i < np; i++)
+            tmp[paraPrintOrder[com.model_2sp][com.paraNamesMap[i]]] = i;
+        for (i = 0, j = 0; i < com.maxnp; i++)
+            if (tmp[i] != -1)
+                com.printMap[j++] = tmp[i];
+    }
+
+    if (!com.simmodel && (com.model == M2SIM3s || com.model == M2Pro || com.model == M2ProMax)) {
+        if (com.paraMap[8] != -1) {
+            if (com.paraMap[5] != -1) {
+                paranames[ 8][0] = 'M';
+                paranames[ 8][3] = 0;
+            }
+            else {
+                paranames[ 8][0] = 'w';
+                paranames[ 8][3] = '/';
+            }
+        }
+        if (com.paraMap[9] != -1) {
+            if (com.paraMap[4] != -1) {
+                paranames[ 9][0] = 'M';
+                paranames[ 9][3] = 0;
+            }
+            else {
+                paranames[ 9][0] = 'w';
+                paranames[ 9][3] = '/';
+            }
+        }
+        if (com.paraMap[10] != -1) {
+            if (com.paraMap[6] != -1) {
+                paranames[10][0] = 'M';
+                paranames[10][3] = 0;
+            }
+            else {
+                paranames[10][0] = 'w';
+                paranames[10][3] = '/';
+            }
+        }
+        if (com.paraMap[11] != -1) {
+            if (com.paraMap[4] != -1) {
+                paranames[11][0] = 'M';
+                paranames[11][3] = 0;
+            }
+            else {
+                paranames[11][0] = 'w';
+                paranames[11][3] = '/';
+            }
+        }
+        if (com.paraMap[12] != -1) {
+            if (com.paraMap[6] != -1) {
+                paranames[12][0] = 'M';
+                paranames[12][3] = 0;
+            }
+            else {
+                paranames[12][0] = 'w';
+                paranames[12][3] = '/';
+            }
+        }
+        if (com.paraMap[13] != -1) {
+            if (com.paraMap[5] != -1) {
+                paranames[13][0] = 'M';
+                paranames[13][3] = 0;
+            }
+            else {
+                paranames[13][0] = 'w';
+                paranames[13][3] = '/';
+            }
+        }
+        if (com.paraMap[14] != -1) {
+            if (com.paraMap[7] != -1) {
+                paranames[14][0] = 'M';
+                paranames[14][3] = 0;
+            }
+            else {
+                paranames[14][0] = 'w';
+                paranames[14][3] = '/';
+            }
+        }
+        if (com.paraMap[15] != -1) {
+            if (com.paraMap[1] != -1) {
+                paranames[15][0] = 'M';
+                paranames[15][3] = 0;
+            }
+            else {
+                paranames[15][0] = 'w';
+                paranames[15][3] = '/';
             }
         }
     }
@@ -2096,8 +3020,10 @@ int GetParaMap() {
 
 int GetInitials (int np, double x[], double xb[][2])
 {
-    int i, np0;
-    double thetaU=1.99*MULTIPLIER, /*tmp,*/ MU=9.99;//0.15;  /* MU = 0.125 should be fine */
+    int i, j, np0;
+    double thetaU=com.theta_UB/*1.99*/*MULTIPLIER, /*tmp,*/ MU= com.M_UB/*9.99*/;//0.15;  /* MU = 0.125 should be fine */
+    int isM2 = (com.model == M2SIM3s || com.model == M2Pro || com.model == M2ProMax);
+    int isM3 = (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23);
 
     for(i=0; i<np; i++)  { xb[i][0]=LBOUND*MULTIPLIER;  xb[i][1]=thetaU; }
     if (com.paraMap[3] != -1) {
@@ -2134,7 +3060,9 @@ int GetInitials (int np, double x[], double xb[][2])
 
     else {
         for (i = 0, np0 = 0; i < 7; i++)
-            if (com.paraMap[i] != -1) np0++;
+            if (np0 < com.paraMap[i])
+                np0 = com.paraMap[i];
+        np0++;
 
         for (i = 0; i<np0; i++) {
             if (com.initials[com.model][com.paraNamesMap[i]] != 0) {
@@ -2168,7 +3096,7 @@ int GetInitials (int np, double x[], double xb[][2])
                 }
             }
             else {
-                if (com.aroundMLEM0 && MLEM0[stree.sptree].para[3] != 0)
+                if (com.aroundMLEM0 && MLEM0[stree.sptree].para[3] != 0 && MLEM0[stree.sptree].para[2] != 0)
                     x[com.paraMap[3]] = MLEM0[stree.sptree].para[3] / MLEM0[stree.sptree].para[2] * (0.95 + 0.001*rndu()*MULTIPLIER);
                 else
                     x[com.paraMap[3]] = 0.4 + 0.5*rndu();
@@ -2193,14 +3121,17 @@ int GetInitials (int np, double x[], double xb[][2])
                 if(com.model==M1DiscreteBeta) {
                     x[i] = 1 + 5*rndu();                     /* qbeta */
                 }
-                else if (com.model == M2SIM3s || com.model == M2Pro || com.model == M2ProMax) {
+                else if (isM2) {
+                    if (com.paraNamesMap[i] == 7)
+                        x[i] = (0.0010 + rndu() / 100)*MULTIPLIER;
+                    else
 #ifdef FIXM12
-                    x[i] = 0.0001;
+                        x[i] = 0.0001;
 #else
-                    x[i] = 0.01 + 0.1*rndu();                  /* M12 */ //zzz T/p
+                        x[i] = 0.01 + 0.1*rndu();                  /* M12 */ //zzz T/p
 #endif
                 }
-                else if (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23) {
+                else if (isM3) {
                     if (com.paraNamesMap[i] == 7 || com.paraNamesMap[i] == 10 || com.paraNamesMap[i] == 11)
                         x[i] = 0.4 + 0.5*rndu();
                     else
@@ -2212,11 +3143,17 @@ int GetInitials (int np, double x[], double xb[][2])
                 xb[i][0] = 0.1;                          /* q_beta */
                 xb[i][1] = 499;                          /* q_beta */
             }
-            else if (com.model == M2SIM3s || com.model == M2Pro || com.model == M2ProMax) {   //zzz
-                xb[i][0] = LBOUND;            /* M12 */
-                xb[i][1] = MU;
+            else if (isM2) {   //zzz
+                if (com.paraNamesMap[i] == 7) {
+                    xb[i][0] = LBOUND*MULTIPLIER;
+                    xb[i][1] = thetaU;
+                }
+                else {
+                    xb[i][0] = LBOUND;            /* M12 */
+                    xb[i][1] = MU;
+                }
             }
-            else if (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23) {//zzz
+            else if (isM3) {//zzz
                 if (com.paraNamesMap[i] == 7 || com.paraNamesMap[i] == 10 || com.paraNamesMap[i] == 11) {
                     xb[i][0] = LBOUND;            /* xT&p */
                     xb[i][1] = 0.999; //xT has upper limit 1
@@ -2228,12 +3165,15 @@ int GetInitials (int np, double x[], double xb[][2])
             }
         }
 
-        if (com.paraMap[7] != -1 && (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23)) { //zzz,if tau1 is not estimable, so is T; if T is estimable, so is tau1
+        if (com.paraMap[7] != -1 && isM3) { //zzz,if tau1 is not estimable, so is T; if T is estimable, so is tau1
             if (com.initials[com.model][7] != 0) {
-                x[com.paraMap[7]] = com.initials[com.model][7] / (x[com.paraMap[3]] * x[com.paraMap[2]]); //convert to xT
+                if (com.paraMap[3] != -1)
+                    x[com.paraMap[7]] = com.initials[com.model][7] / (x[com.paraMap[3]] * x[com.paraMap[2]]); //convert to xT
+                else
+                    x[com.paraMap[7]] = com.initials[com.model][7] / x[com.paraMap[2]]; //convert to xT
 
                 if (x[com.paraMap[7]] < 0 || x[com.paraMap[7]] > 1) {
-                    fprintf(stderr, "\nError: invalid initial value for %s/%s in model %d.\n", paranames[7], paranames[3], com.model);
+                    fprintf(stderr, "\nError: invalid initial value for %s/%s in model %d.\n", paranames[7], paranames[(com.paraMap[3] != -1) ? 3 : 2], com.model);
                     exit(-1);
                 }
             }
@@ -2243,12 +3183,14 @@ int GetInitials (int np, double x[], double xb[][2])
     if(noisy) {
         printf("\nInitials & bounds\n");
         for (i=0; i<np; i++) {
-            if(com.paraNamesMap[i] == 3)
+            j = com.printMap[i];
+            if(com.paraNamesMap[j] == 3)
                 printf(" %4s/%s", paranames[3], paranames[2]);
-            else if(com.paraNamesMap[i] == 7 && (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23))
-                printf(" %4s/%s", paranames[7], paranames[3]);
+            else if (com.paraNamesMap[j] == 7 && isM3) {
+                printf(" %4s/%s", paranames[7], paranames[(com.paraMap[3] != -1) ? 3 : 2]);
+            }
             else
-                printf(" %9s", paranames[com.paraNamesMap[i]]);
+                printf(" %9s", paranames[com.paraNamesMap[j]]);
         }
         printf("\n");
 //        if(com.model==M0)             printf("theta4    theta5      tau0     xtau1  theta1&2    theta3\n");
@@ -2259,9 +3201,9 @@ int GetInitials (int np, double x[], double xb[][2])
         FOR(i,np) printf(" %20.18f", xb[i][0]);  FPN(F0);
         FOR(i,np) printf(" %20.18f", xb[i][1]);  FPN(F0);
 #else
-        FOR(i,np) printf(" %9.6f", x[i]); FPN(F0);
-        FOR(i,np) printf(" %9.5f", xb[i][0]);  FPN(F0);
-        FOR(i,np) printf(" %9.5f", xb[i][1]);  FPN(F0);
+        FOR(i,np) printf(" %9.6f", x[com.printMap[i]]); FPN(F0);
+        FOR(i,np) printf(" %9.5f", xb[com.printMap[i]][0]);  FPN(F0);
+        FOR(i,np) printf(" %9.5f", xb[com.printMap[i]][1]);  FPN(F0);
 #endif
     }
 
@@ -2339,14 +3281,11 @@ int Models0123 (FILE *fout, FILE *frub, FILE *frst, double space[])
 {
     int i, s, noisy0=noisy, K=com.npoints, nTrees = MAXGTREES, nTrees2seq = MAXGTREES2SEQ;
 
-#ifdef DEBUG_GTREE_PROB
-    if (com.usedata == ETreeData) error2("DEBUG_GTREE_PROB usedata = 1");
-#endif
+    com.pDclass = (double*)malloc((com.ncatBeta*data.ndata+com.ncatBeta+com.ncatBeta)*sizeof(double));
+    if(com.pDclass==NULL) error2("oom Models01231");
+    com.tau1beta = com.pDclass + com.ncatBeta*data.ndata;
 
     if (com.usedata == ESeqData) {
-        com.pDclass = (double*)malloc((com.ncatBeta*data.ndata+com.ncatBeta)*sizeof(double));
-        if(com.pDclass==NULL) error2("oom Models01231");
-        com.tau1beta = com.pDclass + com.ncatBeta*data.ndata;
         s = (com.fix_locusrate ? K*K*2 : K*K*5);  /* 2 for b0 & b1; 5 for p0124 */
         com.bp0124[0] = (double*)malloc((nTrees*s+nTrees2seq*K)*sizeof(double));
         com.wwprior[0] = (double*)malloc((nTrees*3*K*K+nTrees2seq*K)*sizeof(double));
@@ -2358,9 +3297,9 @@ int Models0123 (FILE *fout, FILE *frub, FILE *frst, double space[])
         }
     }
 
-    com.GtreeTab = (struct BTEntry **)malloc(NSTATES*sizeof(struct BTEntry *));
+    com.GtreeTab = (BTEntry **)malloc(NSTATES*sizeof(BTEntry *));
     if(com.GtreeTab == NULL) error2("oom Models01233");
-    memset(com.GtreeTab, 0, NSTATES*sizeof(struct BTEntry *));
+    memset(com.GtreeTab, 0, NSTATES*sizeof(BTEntry *));
 
     noisy = 0;
     if (com.usedata == ESeqData)
@@ -2379,7 +3318,9 @@ int Models0123 (FILE *fout, FILE *frub, FILE *frst, double space[])
     {
         if (!com.runmodels[com.extModel])
             continue;
-        com.model = com.modelMap[com.extModel];
+        if (stree.nspecies != 3)
+            com.model_2sp = ModelMap_2sp(com.extModel);
+        com.model = ModelMap(com.extModel);
         RunModel(fout, frub, frst, space);
     }
 
@@ -2396,12 +3337,13 @@ int Models0123 (FILE *fout, FILE *frub, FILE *frst, double space[])
 
 int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
 {
-    int np, np0, i, j, noisy0=noisy, sptree, nsptree, bestsptree, bestmodel, len, fw;
+    int np, np0, i, j, noisy0=noisy, sptree, nsptree, bestsptree, bestmodel, len, fw, hasOtherPeak=0;
     char timestr[96];
     //char * paranames[7] = {"theta4", "theta5", "tau0", "tau1", "theta1&2", "theta3"};
     double *var, lnL, lnL0=0, e=1e-8, M12=0.0, M21=0.0, tmp;
     double xb[MAXPARAMETERS][2];
     double x[MAXPARAMETERS] = { 1,1,1,1,1,1,1 };
+    int runSptree[MAXSPTREES];
     int nps[MAXSPTREES];
     double lnLs[MAXSPTREES];
     int LRT[MAXSPTREES];
@@ -2409,94 +3351,34 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
     char buf[512];
     int* iStateCnt;
     static int bestsptreeM0, fw0;
+    int isM2 = (com.model == M2SIM3s || com.model == M2Pro || com.model == M2ProMax);
+    int isM3 = (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23);
+
+    InitializeParaNames();
+
+    InitializeIntModel(runSptree);
+
+    InitializeGtreeTab();
+
+    if (stree.speciestree) {
+        nsptree = 0;
+        for (i = 0; i < MAXSPTREES; i++)
+            nsptree += runSptree[i];
+        for (sptree = 0; sptree < nsptree; sptree++)
+            len = snprintf(sptreeStr[sptree], sizeof(sptreeStr[sptree]), "((%s, %s), %s)", stree.nodes[spMap[sptree][0] - 1].name, stree.nodes[spMap[sptree][1] - 1].name, stree.nodes[spMap[sptree][2] - 1].name);
+    }
 
     if (noisy) printf("\n\n*** Model %d (%s) ***\n", com.extModel, ModelStr[com.extModel]);
-
-    if (com.usedata == ETreeData && com.model == M1DiscreteBeta) {
-        if(noisy) printf("\nUse gene trees as data. Skipping M1!\n");
-        return 0;
-    }
 
     if(fout) {
         fprintf(fout, "\n\n*** Model %d (%s) ***\n", com.extModel, ModelStr[com.extModel]);
         fprintf(frub, "\n\n*** Model %d (%s) ***\n", com.extModel, ModelStr[com.extModel]);
     }
 
-    if(com.model==M0) {
-        com.nGtree = LENGTH_OF(GtOffsetM0);
-    } else if(com.model==M1DiscreteBeta) {
-        com.nGtree = LENGTH_OF(GtOffsetM0);
-        paranames[ 7] = "qbeta";
-        paranames[ 8] = 0;
-    } else if(com.model==M2SIM3s) {
-        com.nGtree = LENGTH_OF(GtOffsetM2);
-        paranames[ 7] = "M12";
-        paranames[ 8] = "M21";
-        paranames[ 9] = 0;
-    } else if(com.model==M2Pro) {
-        com.nGtree = LENGTH_OF(GtOffsetM2Pro);
-        paranames[ 7] = "M12";
-        paranames[ 8] = "M21";
-        paranames[ 9] = "M13";
-        paranames[10] = "M31";
-        paranames[11] = "M23";
-        paranames[12] = "M32";
-        paranames[13] = 0;
-    } else if(com.model == M2ProMax) {
-        com.nGtree = LENGTH_OF(GtOffsetM2ProMax);
-        paranames[ 7] = "M12";
-        paranames[ 8] = "M21";
-        paranames[ 9] = "M13";
-        paranames[10] = "M31";
-        paranames[11] = "M23";
-        paranames[12] = "M32";
-        paranames[13] = "M53";
-        paranames[14] = "M35";
-    } else if(com.model==M3MSci12) {
-        com.nGtree = LENGTH_OF(GtOffsetM3MSci12);
-        paranames[ 7] = "T";
-        paranames[ 8] = "thetaX";
-        paranames[ 9] = "thetaY";
-        paranames[10] = "phi12";
-        paranames[11] = "phi21";
-        paranames[12] = 0;
-    } else if(com.model==M3MSci13) {
-        com.nGtree = LENGTH_OF(GtOffsetM3MSci13);
-        paranames[ 7] = "T";
-        paranames[ 8] = "thetaX";
-        paranames[ 9] = "thetaZ";
-        paranames[10] = "phi13";
-        paranames[11] = "phi31";
-        paranames[12] = 0;
-    } else if(com.model==M3MSci23) {
-        com.nGtree = LENGTH_OF(GtOffsetM3MSci23);
-        paranames[ 7] = "T";
-        paranames[ 8] = "thetaY";
-        paranames[ 9] = "thetaZ";
-        paranames[10] = "phi23";
-        paranames[11] = "phi32";
-        paranames[12] = 0;
-    }
+    for (stree.sptree = 0; stree.sptree < MAXSPTREES; stree.sptree++) {
+        if (!runSptree[stree.sptree])
+            continue;
 
-    if (com.simmodel) {
-        paranames[4] = "theta1&2";
-        paranames[7] = "M1&2";
-    }
-
-    InitializeGtreeTab();
-
-    if (stree.speciestree)
-        if (com.asymmetric[com.model])
-            nsptree = 6;
-        else
-            nsptree = 3;
-    else
-        nsptree = 1;
-
-    for (sptree = 0; sptree < nsptree; sptree++)
-        len = snprintf(sptreeStr[sptree], sizeof(sptreeStr[sptree]), "((%s, %s), %s)", stree.nodes[spMap[sptree][0] - 1].name, stree.nodes[spMap[sptree][1] - 1].name, stree.nodes[spMap[sptree][2] - 1].name);
-
-    for (stree.sptree = 0; stree.sptree < nsptree; stree.sptree++) {
         if (stree.speciestree) {
             if (noisy) printf("\nSpecies tree %d: %s\n", stree.sptree + 1, sptreeStr[stree.sptree]);
             if (fout) {
@@ -2514,11 +3396,9 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
 
 #ifdef DEBUG_GTREE_PROB
         printf("\nCalculate the gene tree probabilities at fixed parameters read from 'in.3s':\n");
-        FOR(i,MAXPARAMETERS) if(paranames[i]) printf(" %9s", paranames[i]); else break; FPN(F0);
-        FOR(i,MAXPARAMETERS) if(paranames[i]) printf(" %9.6f", com.initials[com.model][i]); else break; FPN(F0);
-        for(i=0; i<MAXPARAMETERS; i++)
-            if(com.paraMap[i] != -1)
-                x[com.paraMap[i]] = com.initials[com.model][i];
+        FOR(i,np) x[i] = com.initials[com.model][com.paraNamesMap[i]];
+        FOR(i,np) printf(" %9s", paranames[com.paraNamesMap[com.printMap[i]]]); FPN(F0);
+        FOR(i,np) printf(" %9.6f", x[com.printMap[i]]); FPN(F0);
         NFunCall = 0;
         LASTROUND = 2;
         lnL = lfun(x,np);
@@ -2531,14 +3411,12 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
 
 #ifdef DEBUG_LIKELIHOOD
         printf("\nCalculate the log likelihood for the data at fixed parameters read from 'in.3s':\n");
-        FOR(i, MAXPARAMETERS) if (paranames[i]) printf(" %9s", paranames[i]); else break; FPN(F0);
-        FOR(i, MAXPARAMETERS) if (paranames[i]) printf(" %9.6f", com.initials[com.model][i]); else break; FPN(F0);
-        for (i = 0; i<MAXPARAMETERS; i++)
-            if (com.paraMap[i] != -1)
-                x[com.paraMap[i]] = com.initials[com.model][i];
+        FOR(i,np) x[i] = com.initials[com.model][com.paraNamesMap[i]];
+        FOR(i,np) printf(" %9s", paranames[com.paraNamesMap[com.printMap[i]]]); FPN(F0);
+        FOR(i,np) printf(" %9.6f", x[com.printMap[i]]); FPN(F0);
         NFunCall = 0;
         LASTROUND = 1;
-        lnL = lfun(x, np);
+        lnL = lfun(x,np);
         printf("lnL = %18.12f\n", -lnL);
         continue;
 #endif
@@ -2656,25 +3534,51 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
 
         LASTROUND = 2;
 
-        if (com.paraMap[3] != -1) {
+        if (com.paraMap[3] != -1)
             x[com.paraMap[3]] *= x[com.paraMap[2]];     /* xtau1 -> tau1 */
-
-            if (com.paraMap[7] != -1 && (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23))
-                x[com.paraMap[7]] *= x[com.paraMap[3]]; // T from xT
-        }
+        if (com.paraMap[7] != -1 && isM3)
+            x[com.paraMap[7]] *= x[com.paraMap[(com.paraMap[3] != -1) ? 3 : 2]]; // T from xT
 
         if (com.model == M0) {
-            for (i = stree.sptree; i < stree.nsptree; i += 3) {
-                memset(MLEM0[i].para, 0, MAXPARAMETERS * sizeof(double));
+            if (stree.nspecies != 2) {
+                i = stree.sptree;
+                do {
+                    memset(MLEM0[i].para, 0, MAXPARAMETERS * sizeof(double));
+                    for (j = 0; j < np; j++)
+                        MLEM0[i].para[com.paraNamesMap[j]] = x[j];
+                    MLEM0[i].np = np;
+                    MLEM0[i].lnL = lnL;
 
-                for (j = 0; j < np; j++)
-                    MLEM0[i].para[com.paraNamesMap[j]] = x[j];
+                    i += 3;
+                } while (i < stree.nsptree && !runSptree[i]);
 
-                MLEM0[i].np = np;
-                MLEM0[i].lnL = lnL;
+                i = stree.sptree + 3;
+                if (i < stree.nsptree && !runSptree[i]) {
+                    tmp = MLEM0[i].para[4];
+                    MLEM0[i].para[4] = MLEM0[i].para[5];
+                    MLEM0[i].para[5] = tmp;
+                }
+            }
+            else {
+                for (i = 0; i < 3; i++) {
+                    memset(MLEM0[i].para, 0, MAXPARAMETERS * sizeof(double));
+                    for (j = 0; j < np; j++)
+                        MLEM0[i].para[com.paraNamesMap[j]] = x[j];
+                    MLEM0[i].np = np;
+                    MLEM0[i].lnL = lnL;
+                }
+
+                tmp = MLEM0[1].para[5];
+                MLEM0[1].para[5] = MLEM0[1].para[6];
+                MLEM0[1].para[6] = tmp;
+
+                tmp = MLEM0[2].para[4];
+                MLEM0[2].para[4] = MLEM0[2].para[5];
+                MLEM0[2].para[5] = MLEM0[2].para[6];
+                MLEM0[2].para[6] = tmp;
             }
         }
-        else {
+        else if(com.runmodels[M0]) {
             np0 = MLEM0[stree.sptree].np;
             lnL0 = MLEM0[stree.sptree].lnL;
 
@@ -2689,9 +3593,9 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
 
         if(noisy) {
             printf("\nlnL  = %12.6f  (%5d lfun calls)\n", -lnL, NFunCall);
-            if (com.model != M0) {
+            if (com.model != M0 && com.runmodels[M0]) {
                 printf("2DlnL = %+12.6f\n", 2*(lnL0-lnL));
-                if (com.model == M2SIM3s && !com.simmodel || com.model == M2Pro || com.model == M2ProMax || com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23) {
+                if (isM2 || isM3) {
                     if (LRT[stree.sptree] == -1)
                         printf("    Data does not contain efficient information.\n");
                     else
@@ -2699,18 +3603,16 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
                 }
             }
             printf("MLEs\n");
-            for (i=0; i<np; i++) {
-                printf(" %9s", paranames[com.paraNamesMap[i]]);
-            }
+            for(i=0; i<np; i++) printf(" %9s", paranames[com.paraNamesMap[com.printMap[i]]]);
             printf("\n");
-            for(i=0; i<np; i++)    printf(" %9.6f", x[i]);
+            for(i=0; i<np; i++) printf(" %9.6f", x[com.printMap[i]]);
             printf("\n");
         }
         if(fout) {
             fprintf(fout, "\nlnL  = %12.6f\n", -lnL);
-            if (com.model != M0) {
+            if (com.model != M0 && com.runmodels[M0]) {
                 fprintf(fout, "2DlnL = %+12.6f\n", 2*(lnL0-lnL));
-                if (com.model == M2SIM3s && !com.simmodel || com.model == M2Pro || com.model == M2ProMax || com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23) {
+                if (isM2 || isM3) {
                     if (LRT[stree.sptree] == -1)
                         fprintf(fout, "    Data does not contain efficient information.\n");
                     else
@@ -2718,16 +3620,14 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
                 }
             }
             fprintf(fout, "MLEs\n");
-            for (i=0; i<np; i++) {
-                fprintf(fout, " %9s", paranames[com.paraNamesMap[i]]);
-            }
+            for(i=0; i<np; i++) fprintf(fout, " %9s", paranames[com.paraNamesMap[com.printMap[i]]]);
             fprintf(fout, "\n");
-            for(i=0; i<np; i++)    fprintf(fout, " %9.6f", x[i]);
+            for(i=0; i<np; i++) fprintf(fout, " %9.6f", x[com.printMap[i]]);
             fprintf(fout, "\n");
             fflush(fout);
         }
 
-        if (com.usedata == ESeqData)
+        if (stree.nspecies == 3 && com.usedata == ESeqData)
             // call lfun to compute gene tree posteriors
             lfun(x,np);
 
@@ -2739,27 +3639,37 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
 
             if(noisy) {
                 printf("SEs:\n");
-                for(i=0;i<np;i++) printf(" %9.6f",(var[i*np+i]>0.?sqrt(var[i*np+i]):-1));
+                for(i=0;i<np;i++) printf(" %9.6f",(var[com.printMap[i]*np+com.printMap[i]]>0.?sqrt(var[com.printMap[i]*np+com.printMap[i]]):-1));
                 printf("\n");
             }
             fprintf(fout, "SEs:\n");
-            for(i=0;i<np;i++) fprintf(fout, " %9.6f", (var[i*np+i]>0. ? sqrt(var[i*np+i]) : -1));
+            for(i=0;i<np;i++) fprintf(fout, " %9.6f", (var[com.printMap[i]*np+com.printMap[i]]>0. ? sqrt(var[com.printMap[i]*np+com.printMap[i]]) : -1));
             fprintf(fout, "\n\nCorrelation matrix\n");
             for(i=0;i<np;i++) for(j=0;j<i;j++)
                 var[j*np+i] = var[i*np+j] =
                 (var[i*np+i]>0 && var[j*np+j]>0 ? var[i*np+j]/sqrt(var[i*np+i]*var[j*np+j]) : -9);
             for(i=0;i<np;i++) var[i*np+i]=1;
-            matout2(fout, var, np, np, 10, 5);
+            for(i=0,FPN(fout); i<np; i++,FPN(fout))
+                for(j=0; j<np; j++)
+                    fprintf(fout," %*.*f", 10-1, 5, var[com.printMap[i]*np+com.printMap[j]]);
             fflush(fout);
         }
+
         if(com.model==M1DiscreteBeta) {
-            fprintf(fout, "\ntau1 from the discrete beta (ncat = %d), using %s\ntau1: ", com.ncatBeta, (com.UseMedianBeta?"median":"mean"));
-            for(i=0; i<com.ncatBeta; i++) fprintf(fout, " %9.6f", com.tau1beta[i]);
-            fprintf(fout, "\nfreq: ");
-            for(i=0; i<com.ncatBeta; i++) fprintf(fout, " %9.6f", 1.0/com.ncatBeta);
-            fprintf(fout, "\n");
-            for(i=0; i<np; i++) fprintf(frst, " %9.6f", x[i]);
-            fprintf(frst, " %9.6f\n", 2*(lnL0-lnL));
+            if(noisy) {
+                fprintf(fout, "\ntau1 from the discrete beta (ncat = %d), using %s\ntau1: ", com.ncatBeta, (com.UseMedianBeta?"median":"mean"));
+                for(i=0; i<com.ncatBeta; i++) fprintf(fout, " %9.6f", com.tau1beta[i]);
+                fprintf(fout, "\nfreq: ");
+                for(i=0; i<com.ncatBeta; i++) fprintf(fout, " %9.6f", 1.0/com.ncatBeta);
+                fprintf(fout, "\n");
+            }
+            if(frst) {
+                for(i=0; i<np; i++) fprintf(frst, " %9.6f", x[com.printMap[i]]);
+                if (com.runmodels[M0])
+                    fprintf(frst, " %9.6f\n", 2 * (lnL0 - lnL));
+                else
+                    fprintf(frst, "\n");
+            }
         }
 
         iStateCnt = data.iStateCnt[stree.sptree];
@@ -2767,45 +3677,71 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
         if(com.model==M2SIM3s && !com.fixto0[0] && (com.simmodel || !com.fixto0[1]) /* enum { M12 = 0, M21 = 1 }; */
             && (iStateCnt[5] + iStateCnt[28])
             && !(iStateCnt[0] + iStateCnt[13] + iStateCnt[1] + iStateCnt[12] + iStateCnt[2] + iStateCnt[14] + iStateCnt[27] + iStateCnt[31])) {
-            for(i=0; i<np; i++) fprintf(frst, "\t%.6f", x[i]);
-            if(noisy) printf("\nThe other local peak is at\n");
-            fprintf(fout, "\nThe other local peak is at\n");
-            M12 = x[com.paraMap[7]]/MULTIPLIER;
+            hasOtherPeak = 1;
+            if(frst) for(i=0; i<np; i++) fprintf(frst, "\t%.6f", x[com.printMap[i]]);
+            M12 = x[com.paraMap[8]]/MULTIPLIER;
             x[com.paraMap[4]] = x[com.paraMap[4]]/(8*M12);  /*  theta/(8M)  */
-            x[com.paraMap[7]] = MULTIPLIER/(64*M12);    /*  1/(64M)  */
+            x[com.paraMap[8]] = MULTIPLIER/(64*M12);    /*  1/(64M)  */
             if (!com.simmodel) {
-                M21 = x[com.paraMap[8]]/MULTIPLIER;
+                M21 = x[com.paraMap[9]]/MULTIPLIER;
                 x[com.paraMap[5]] = x[com.paraMap[5]]/(8*M21);  /*  theta/(8M)  */
-                x[com.paraMap[8]] = MULTIPLIER/(64*M21);    /*  1/(64M)  */
+                x[com.paraMap[9]] = MULTIPLIER/(64*M21);    /*  1/(64M)  */
             }
             lnL = lfun(x, np);
-            if(noisy) {
-                for(i=0; i<np; i++) printf(" %9.6f", x[i]); FPN(F0);
-                printf(" %12.6f\n", -lnL);
-            }
-            for(i=0; i<np; i++) fprintf(fout, " %9.6f", x[i]); FPN(fout);
-            fprintf(fout, " %12.6f\n", -lnL);
-            fprintf(frst, "\t%.6f\n", 2*(lnL0-lnL));
         }
 
-        if(com.model== M3MSci12 && !com.fixto0[8] && !com.fixto0[9] && !com.fix[0] && !com.fix[1] /* enum { Phi12 = 8, Phi21 = 9, ThetaX = 0, ThetaY = 1 }; */
+        if(com.model== M3MSci12 && !com.fixto0[8] && !com.fixto0[9] && !com.fix[6] && !com.fix[7] /* enum { Phi12 = 8, Phi21 = 9, ThetaX = 6, ThetaY = 7 }; */
             && (iStateCnt[0] + iStateCnt[13] + iStateCnt[1] + iStateCnt[12] + iStateCnt[2] + iStateCnt[14] + iStateCnt[5] + iStateCnt[27] + iStateCnt[31] + iStateCnt[28])) {
-            for(i=0; i<np; i++) fprintf(frst, "\t%.6f", x[i]);
-            if(noisy) printf("\nThe other local peak is at\n");
-            fprintf(fout, "\nThe other local peak is at\n");
+            hasOtherPeak = 1;
+            if(frst) for(i=0; i<np; i++) fprintf(frst, "\t%.6f", x[com.printMap[i]]);
             tmp = x[com.paraMap[8]];
             x[com.paraMap[8]] = x[com.paraMap[9]];
             x[com.paraMap[9]] = tmp;
             x[com.paraMap[10]] = 1 - x[com.paraMap[10]];
             x[com.paraMap[11]] = 1 - x[com.paraMap[11]];
             lnL = lfun(x, np);
+        }
+
+        if (hasOtherPeak) {
             if(noisy) {
-                for(i=0; i<np; i++) printf(" %9.6f", x[i]); FPN(F0);
-                printf(" %12.6f\n", -lnL);
+                printf("\nThe other local peak is at\n");
+                printf("lnL  = %12.6f\n", -lnL);
+                printf("MLEs\n");
+                for(i=0; i<np; i++) printf(" %9.6f", x[com.printMap[i]]); FPN(F0);
             }
-            for(i=0; i<np; i++) fprintf(fout, " %9.6f", x[i]); FPN(fout);
-            fprintf(fout, " %12.6f\n", -lnL);
-            fprintf(frst, "\t%.6f\n", 2*(lnL0-lnL));
+            if(fout) {
+                fprintf(fout, "\nThe other local peak is at\n");
+                fprintf(fout, "lnL  = %12.6f\n", -lnL);
+                fprintf(fout, "MLEs\n");
+                for(i=0; i<np; i++) fprintf(fout, " %9.6f", x[com.printMap[i]]); FPN(fout);
+            }
+            if(frst) {
+                if (com.runmodels[M0])
+                    fprintf(frst, "\t%.6f\n", 2*(lnL0-lnL));
+                else
+                    fprintf(frst, "\n");
+            }
+            if(fout && com.getSE) {
+                Hessian (np, x, lnL, space, var, lfun, var+2*np*np);
+                matinv(var, np, np, var+np*np);
+
+                if(noisy) {
+                    printf("SEs:\n");
+                    for(i=0;i<np;i++) printf(" %9.6f",(var[com.printMap[i]*np+com.printMap[i]]>0.?sqrt(var[com.printMap[i]*np+com.printMap[i]]):-1));
+                    printf("\n");
+                }
+                fprintf(fout, "SEs:\n");
+                for(i=0;i<np;i++) fprintf(fout, " %9.6f", (var[com.printMap[i]*np+com.printMap[i]]>0. ? sqrt(var[com.printMap[i]*np+com.printMap[i]]) : -1));
+                fprintf(fout, "\n\nCorrelation matrix\n");
+                for(i=0;i<np;i++) for(j=0;j<i;j++)
+                    var[j*np+i] = var[i*np+j] =
+                    (var[i*np+i]>0 && var[j*np+j]>0 ? var[i*np+j]/sqrt(var[i*np+i]*var[j*np+j]) : -9);
+                for(i=0;i<np;i++) var[i*np+i]=1;
+                for(i=0,FPN(fout); i<np; i++,FPN(fout))
+                    for(j=0; j<np; j++)
+                        fprintf(fout," %*.*f", 10-1, 5, var[com.printMap[i]*np+com.printMap[j]]);
+                fflush(fout);
+            }
         }
 
         fflush(frst);
@@ -2821,7 +3757,7 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
         if (com.model == M0) {
             bestsptreeM0 = bestsptree;
         }
-        else {
+        else if (com.runmodels[M0]) {
             if (bestsptreeM0 == bestsptree % 3)
                 bestmodel = (LRT[bestsptree] > 0) ? com.extModel : M0;
             else if (LRT[bestsptreeM0] > 0 && LRT[bestsptree] > 0)
@@ -2846,7 +3782,7 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
 
         if (noisy) {
             printf("\nSummary:\n");
-            if (com.model == M0) {
+            if (com.model == M0 || !com.runmodels[M0]) {
                 printf("    %-*s    %*s  %2s\n", len + 1, "species tree", fw, "lnL", "np");
                 for (sptree = 0; sptree < nsptree; sptree++)
                     printf("  %d: %s    %*.6f  %2d\n", sptree + 1, sptreeStr[sptree], fw, -lnLs[sptree], nps[sptree]);
@@ -2859,14 +3795,14 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
 
             printf("\nBest species tree:\n");
             printf("  %d: %s", bestsptree + 1, sptreeStr[bestsptree]);
-            if (com.model != M0)
+            if (com.model != M0 && com.runmodels[M0])
                 printf(" under model %d (%s)", bestmodel, ModelStr[bestmodel]);
             printf("\n");
         }
 
         if (fout) {
             fprintf(fout, "\nSummary:\n");
-            if (com.model == M0) {
+            if (com.model == M0 || !com.runmodels[M0]) {
                 fprintf(fout, "    %-*s    %*s  %2s\n", len + 1, "species tree", fw, "lnL", "np");
                 for (sptree = 0; sptree < nsptree; sptree++)
                     fprintf(fout, "  %d: %s    %*.6f  %2d\n", sptree + 1, sptreeStr[sptree], fw, -lnLs[sptree], nps[sptree]);
@@ -2879,7 +3815,7 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
 
             fprintf(fout, "\nBest species tree:\n");
             fprintf(fout, "  %d: %s", bestsptree + 1, sptreeStr[bestsptree]);
-            if (com.model != M0)
+            if (com.model != M0 && com.runmodels[M0])
                 fprintf(fout, " under model %d (%s)", bestmodel, ModelStr[bestmodel]);
             fprintf(fout, "\n");
 
@@ -2901,353 +3837,353 @@ int RunModel (FILE *fout, FILE *frub, FILE *frst, double space[])
  * We assume that all eigenvalues will be real, so we return an error
  * if complex eigenvalues are encountered.
  */
-int EigenHessenbQRImplicit(double *a, int n, double wr[], double *U) {
-    int nn, na, m, l, k, j, its, i, mmin;
-    double z, y, x, w, v, u, t, s, r, q, p, anorm;
-
-    // compute matrix norm for possible use in locating single small
-    // subdiagonal element
-    anorm = 0.0;
-    for(i = 0; i < n; i++)
-        for(j = ((i-1) > 0 ? (i-1) : 0); j < n; j++)
-            anorm += fabs(a[n*i+j]);
-    nn = n-1;
-    t = 0.0; // gets changed only by an exceptional shift
-    while(nn >= 0) { // begin search for next eigenvalue
-        its = 0;
-        do {
-            // begin iteration: look for single small subdiagonal element
-            for(l = nn; l >= 1; l--) {
-                s = fabs(a[n*(l-1)+(l-1)]) + fabs(a[n*l+l]);
-                if (s == 0.0)
-                    s = anorm;
-                if((double)(fabs(a[n*l+(l-1)]) + s) == s) {
-                    a[n*l+(l-1)] = 0.0;
-                    break;
-                }
-            }
-            x = a[n*nn+nn];
-            if(l == nn) { // one root found...
-                wr[nn] = a[n*nn+nn] = x+t;
-                nn--;
-            } else {
-                y = a[n*(nn-1)+(nn-1)];
-                w = a[n*nn+(nn-1)] * a[n*(nn-1)+nn];
-                if(l == (nn-1) ) { // two roots found...
-                    p = 0.5 * (y-x);
-                    q = p * p + w;
-                    z = sqrt(fabs(q));
-                    x += t;
-                    a[n*nn+nn] = x;
-                    a[n*(nn-1)+(nn-1)] = y + t;
-                    if(q >= 0.0) { // ...a real pair
-                        z = p + (p >= 0.0 ? fabs(z) : -fabs(z));
-                        wr[nn-1] = wr[nn] = x + z;
-                        if(z)
-                            wr[nn] = x - w / z;
-                        x = a[n*nn+(nn-1)];
-                        s = fabs(x) + fabs(z);
-                        p = x / s;
-                        q = z / s;
-                        r = sqrt(p*p + q*q);
-                        p /= r;
-                        q /= r;
-                        for(j = nn-1; j < n; j++) { // row modification
-                            z = a[n*(nn-1)+j];
-                            a[n*(nn-1)+j] = q * z + p * a[n*nn+j];
-                            a[n*nn+j] = q * a[n*nn+j] - p * z;
-                        }
-                        for(i = 0; i <= nn; i++) { // column modification
-                            z = a[n*i+(nn-1)];
-                            a[n*i+(nn-1)] = q * z + p * a[n*i+nn];
-                            a[n*i+nn] = q * a[n*i+nn] - p * z;
-                        }
-                        for(i = 0; i < n; i++) { // accumulate transformations
-                            z = U[n*i+(nn-1)];
-                            U[n*i+(nn-1)] = q * z + p * U[n*i+nn];
-                            U[n*i+nn] = q * U[n*i+nn] - p * z;
-                        }
-
-                    } else { // ...a complex pair
-                        printf("matrix has complex eigenvalues - aborting!\n");
-                        return -1;
-                    }
-                    nn -= 2;
-                } else { // no roots found. continue iteration.
-                    if(its == 30) {
-                        printf("too many iterations in hqr\n");
-                        return -1;
-                    }
-                    if(its == 10 || its == 20) { // form exceptional shift
-                        t += x;
-                        for(i = 0; i <= nn; i++)
-                            a[n*i+i] -= x;
-                        s = fabs(a[n*nn+(nn-1)]) + fabs(a[n*(nn-1)+(nn-2)]);
-                        y = x = 0.75 * s;
-                        w = -0.4375 * s * s;
-                    }
-                    ++its;
-                    for(m = (nn-2); m >= l; m--) { // form shift and then look for 2 consecutive small sub-diagonal elements
-                        z = a[n*m+m];
-                        r = x - z;
-                        s = y - z;
-                        p = (r * s - w)/ a[n*(m+1)+m] + a[n*m+(m+1)]; // equation 11.6.23
-                        q = a[n*(m+1)+(m+1)] - z - r - s;
-                        r = a[n*(m+2)+(m+1)];
-                        s = fabs(p) + fabs(q) + fabs(r); // scale to prevent overflow or underflow
-                        p /= s;
-                        q /= s;
-                        r /= s;
-                        if(m == 0)
-                            break;
-                        u = fabs(a[n*m+(m-1)]) * (fabs(q) + fabs(r));
-                        v = fabs(p) * (fabs(a[n*(m-1)+(m-1)]) + fabs(z) + fabs(a[n*(m+1)+(m+1)]));
-                        if((double)(u+v) == v) // equation 11.6.26
-                            break;
-                    }
-                    for(i = m+2; i <= nn; i++) {
-                        a[n*i+(i-2)] = 0.0;
-                        if(i != (m+2))
-                            a[n*i+(i-3)] = 0.0;
-                    }
-                    for(k = m; k <= nn-1; k++) { // double QR step in rows 1 to nn and columns m to nn
-                        if(k != m) {
-                            p = a[n*k+(k-1)]; // begin setup of householder vector
-                            q = a[n*(k+1)+(k-1)];
-                            r = 0.0;
-                            if(k != (nn-1))
-                                r = a[n*(k+2)+(k-1)];
-                            if((x = fabs(p) + fabs(q) + fabs(r)) != 0.0) { // scale to prevent overflow or underflow
-                                p /= x;
-                                q /= x;
-                                r /= x;
-                            }
-                        }
-                        s = sqrt(p*p + q*q + r*r);
-                        if((s = (p >= 0 ? fabs(s) : -fabs(s))) != 0.0) {
-                            if(k == m) {
-                                if(l != m)
-                                    a[n*k+(k-1)] = -a[n*k+(k-1)];
-                            } else {
-                                a[n*k+(k-1)] = -s * x;
-                            }
-                            p += s; // equations 11.6.24
-                            x = p / s;
-                            y = q / s;
-                            z = r / s;
-                            q /= p;
-                            r /= p;
-                            for(j = k; j < n; j++) { // row modification
-                                p = a[n*k+j] + q * a[n*(k+1)+j];
-                                if(k != (nn-1)) {
-                                    p += r * a[n*(k+2)+j];
-                                    a[n*(k+2)+j] -= p * z;
-                                }
-                                a[n*(k+1)+j] -= p * y;
-                                a[n*k+j]  -= p * x;
-                            }
-                            mmin = nn < k+3 ? nn : k+3;
-                            for(i = 0; i <= mmin; i++) { // column modification
-                                p = x * a[n*i+k] + y * a[n*i+(k+1)];
-                                if(k != (nn-1)) {
-                                    p += z * a[n*i+(k+2)];
-                                    a[n*i+(k+2)] -= p * r;
-                                }
-                                a[n*i+(k+1)] -= p * q;
-                                a[n*i+k] -= p;
-                            }
-                            for(i = 0; i < n; i++) { // accumulate transformations
-                                p = x * U[n*i+k] + y * U[n*i+(k+1)];
-                                if(k != nn-1) {
-                                    p += z * U[n*i+(k+2)];
-                                    U[n*i+(k+2)] -= p * r;
-                                }
-                                U[n*i+(k+1)] -= p * q;
-                                U[n*i+k] -= p;
-                            }
-                        }
-                    }
-                }
-            }
-        } while(l < nn-1);
-    }
-    if(anorm != 0.0) {
-        for(nn = n-1; nn >= 0; nn--) {
-            p = wr[nn];
-            na = nn - 1;
-            m = nn;
-            a[n*nn+nn] = 1.0;
-            for(i = nn-1; i >= 0; i--) {
-                w = a[n*i+i] - p;
-                r = 0;
-                for(j = m; j <= nn; j++)
-                    r += a[n*i+j] * a[n*j+nn];
-                m = i;
-
-                t = w;
-                if(t == 0.0)
-                    t = DBL_EPSILON * anorm;
-                a[n*i+nn] = -r/t;
-                t = fabs(a[n*i+nn]); // overflow control
-                if(DBL_EPSILON * t * t > 1)
-                    for(j = i; j <= nn; j++)
-                        a[n*j+nn] /= t;
-            }
-        }
-        for(j = n-1; j >= 0; j--)
-            for(i = 0; i < n; i++) {
-                z = 0;
-                for(k = 0; k <= j; k++)
-                    z += U[n*i+k] * a[n*k+j];
-                U[n*i+j] = z;
-            }
-    }
-    return 0;
-}
-
-void MatBalancing(double *a, double *sc, int n) {
-    int i, j;
-    int last = 0;
-    double c, f, g, r, s;
-    const double sqrdx = 2.0*2, rdx = 2.0;
-
-    while(!last) {
-        last = 1;
-        for(i = 0; i < n; i++) { // calculate row and column norms
-            r = c = 0;
-            for(j = 0; j < n; j++) {
-                if(j != i) {
-                    c += fabs(a[n*j+i]);
-                    r += fabs(a[n*i+j]);
-                }
-            }
-            if(c && r) {
-                g = r / rdx;
-                f = 1;
-                s = c + r;
-                // find integer power of machine radix taht comes closest to
-                // balancing the matrix
-                while(c < g) {
-                    f *= rdx;
-                    c *= sqrdx;
-                }
-                g = r * rdx;
-                while(c > g) {
-                    f /= rdx;
-                    c /= sqrdx;
-                }
-                if((c + r) / f < 0.95 * s) {
-                    last = 0;
-                    g = 1 / f;
-                    sc[i] *= f;
-                    // apply similarity transformation
-                    for(j = 0; j < n; j++)
-                        a[n*i+j] *= g;
-                    for(j = 0; j < n; j++)
-                        a[n*j+i] *= f;
-                }
-            }
-        }
-    }
-}
-
-void EigenUnbalance(double *U, double * sc, int n) {
-    int i, j;
-    for(i = 0; i < n; i++) {
-        for(j = 0; j < n; j++) {
-            U[n*i+j] *= sc[i];
-        }
-    }
-}
-
-void HessenbBacktransform(double *a, double *U, int *p, int n) {
-    int i, j, ip, k;
-    for(ip = n - 2; ip > 0; ip--) {
-        for(k = ip+1; k < n; k++) {
-            U[n*k+ip] = a[n*k+(ip-1)];
-        }
-        i = p[ip];
-        if(i != ip) {
-            for(j = ip; j < n; j++) {
-                U[n*ip+j] = U[n*i+j];
-                U[n*i+j] = 0;
-            }
-            U[n*i+ip] = 1;
-        }
-    }
-}
-
-void HessenbTransform(double *a, double * U, double * space, int n) {
-
-    int i, j, m;
-    double x, y;
-
-    double * sc = space;
-    int * p = (int *)(sc+n);
-
-    MatBalancing(a, sc, n);
-
-    for(m = 1; m < n-1; m++) {
-        x = 0;
-        i = m;
-        for(j = m; j < n; j++) { // find the pivot
-            if(fabs(a[n*j+(m-1)]) > fabs(x)) {
-                x = a[n*j+(m-1)];
-                i = j;
-            }
-        }
-        p[m] = i;
-        if(i != m) {// interchange rows and columns
-            for(j = m-1; j < n; j++) {
-                y = a[n*m+j];
-                a[n*m+j] = a[n*i+j];
-                a[n*i+j] = y;
-            }
-            for(j = 0; j < n; j++) {
-                y = a[n*j+i];
-                a[n*j+i] = a[n*j+m];
-                a[n*j+m] = y;
-            }
-        }
-        if(x) { // carry out the elimination
-            for(i = m + 1; i < n; i++) {
-                if((y = a[n*i+(m-1)]) != 0) {
-                    y /= x;
-                    a[n*i+(m-1)] = y;
-                    for(j = m; j < n; j++)
-                        a[n*i+j] -= y * a[n*m+j];
-                    for(j = 0; j < n; j++)
-                        a[n*j+m] += y * a[n*j+i];
-                }
-            }
-        }
-    }
-    // set lower left elements to 0
-    for(i = 2; i < n; i++) {
-        for(j = 0; j < i - 1; j++) {
-            a[n*i+j] = 0;
-        }
-    }
-
-    HessenbBacktransform(a, U, p, n);
-}
-
-int eigenRealGen(double A[], int n, double root[], double work[]) {
-    int status = 0, i;
-
-    double * U = work;
-    double * space = U+n*n;
-
-    for(i = 0; i < n; i++) {
-        U[n*i+i] = 1;
-        space[i] = 1;
-    }
-
-    HessenbTransform(A, U, space, n);
-    status = EigenHessenbQRImplicit(A, n, root, U);
-    EigenUnbalance(U, space, n);
-    EigenSort(root, U, n);
-    memcpy(A, U, n*n);
-
-    return(status);
-}
+//int EigenHessenbQRImplicit(double *a, int n, double wr[], double *U) {
+//    int nn, na, m, l, k, j, its, i, mmin;
+//    double z, y, x, w, v, u, t, s, r, q, p, anorm;
+//
+//    // compute matrix norm for possible use in locating single small
+//    // subdiagonal element
+//    anorm = 0.0;
+//    for(i = 0; i < n; i++)
+//        for(j = ((i-1) > 0 ? (i-1) : 0); j < n; j++)
+//            anorm += fabs(a[n*i+j]);
+//    nn = n-1;
+//    t = 0.0; // gets changed only by an exceptional shift
+//    while(nn >= 0) { // begin search for next eigenvalue
+//        its = 0;
+//        do {
+//            // begin iteration: look for single small subdiagonal element
+//            for(l = nn; l >= 1; l--) {
+//                s = fabs(a[n*(l-1)+(l-1)]) + fabs(a[n*l+l]);
+//                if (s == 0.0)
+//                    s = anorm;
+//                if((double)(fabs(a[n*l+(l-1)]) + s) == s) {
+//                    a[n*l+(l-1)] = 0.0;
+//                    break;
+//                }
+//            }
+//            x = a[n*nn+nn];
+//            if(l == nn) { // one root found...
+//                wr[nn] = a[n*nn+nn] = x+t;
+//                nn--;
+//            } else {
+//                y = a[n*(nn-1)+(nn-1)];
+//                w = a[n*nn+(nn-1)] * a[n*(nn-1)+nn];
+//                if(l == (nn-1) ) { // two roots found...
+//                    p = 0.5 * (y-x);
+//                    q = p * p + w;
+//                    z = sqrt(fabs(q));
+//                    x += t;
+//                    a[n*nn+nn] = x;
+//                    a[n*(nn-1)+(nn-1)] = y + t;
+//                    if(q >= 0.0) { // ...a real pair
+//                        z = p + (p >= 0.0 ? fabs(z) : -fabs(z));
+//                        wr[nn-1] = wr[nn] = x + z;
+//                        if(z)
+//                            wr[nn] = x - w / z;
+//                        x = a[n*nn+(nn-1)];
+//                        s = fabs(x) + fabs(z);
+//                        p = x / s;
+//                        q = z / s;
+//                        r = sqrt(p*p + q*q);
+//                        p /= r;
+//                        q /= r;
+//                        for(j = nn-1; j < n; j++) { // row modification
+//                            z = a[n*(nn-1)+j];
+//                            a[n*(nn-1)+j] = q * z + p * a[n*nn+j];
+//                            a[n*nn+j] = q * a[n*nn+j] - p * z;
+//                        }
+//                        for(i = 0; i <= nn; i++) { // column modification
+//                            z = a[n*i+(nn-1)];
+//                            a[n*i+(nn-1)] = q * z + p * a[n*i+nn];
+//                            a[n*i+nn] = q * a[n*i+nn] - p * z;
+//                        }
+//                        for(i = 0; i < n; i++) { // accumulate transformations
+//                            z = U[n*i+(nn-1)];
+//                            U[n*i+(nn-1)] = q * z + p * U[n*i+nn];
+//                            U[n*i+nn] = q * U[n*i+nn] - p * z;
+//                        }
+//
+//                    } else { // ...a complex pair
+//                        printf("matrix has complex eigenvalues - aborting!\n");
+//                        return -1;
+//                    }
+//                    nn -= 2;
+//                } else { // no roots found. continue iteration.
+//                    if(its == 30) {
+//                        printf("too many iterations in hqr\n");
+//                        return -1;
+//                    }
+//                    if(its == 10 || its == 20) { // form exceptional shift
+//                        t += x;
+//                        for(i = 0; i <= nn; i++)
+//                            a[n*i+i] -= x;
+//                        s = fabs(a[n*nn+(nn-1)]) + fabs(a[n*(nn-1)+(nn-2)]);
+//                        y = x = 0.75 * s;
+//                        w = -0.4375 * s * s;
+//                    }
+//                    ++its;
+//                    for(m = (nn-2); m >= l; m--) { // form shift and then look for 2 consecutive small sub-diagonal elements
+//                        z = a[n*m+m];
+//                        r = x - z;
+//                        s = y - z;
+//                        p = (r * s - w)/ a[n*(m+1)+m] + a[n*m+(m+1)]; // equation 11.6.23
+//                        q = a[n*(m+1)+(m+1)] - z - r - s;
+//                        r = a[n*(m+2)+(m+1)];
+//                        s = fabs(p) + fabs(q) + fabs(r); // scale to prevent overflow or underflow
+//                        p /= s;
+//                        q /= s;
+//                        r /= s;
+//                        if(m == 0)
+//                            break;
+//                        u = fabs(a[n*m+(m-1)]) * (fabs(q) + fabs(r));
+//                        v = fabs(p) * (fabs(a[n*(m-1)+(m-1)]) + fabs(z) + fabs(a[n*(m+1)+(m+1)]));
+//                        if((double)(u+v) == v) // equation 11.6.26
+//                            break;
+//                    }
+//                    for(i = m+2; i <= nn; i++) {
+//                        a[n*i+(i-2)] = 0.0;
+//                        if(i != (m+2))
+//                            a[n*i+(i-3)] = 0.0;
+//                    }
+//                    for(k = m; k <= nn-1; k++) { // double QR step in rows 1 to nn and columns m to nn
+//                        if(k != m) {
+//                            p = a[n*k+(k-1)]; // begin setup of householder vector
+//                            q = a[n*(k+1)+(k-1)];
+//                            r = 0.0;
+//                            if(k != (nn-1))
+//                                r = a[n*(k+2)+(k-1)];
+//                            if((x = fabs(p) + fabs(q) + fabs(r)) != 0.0) { // scale to prevent overflow or underflow
+//                                p /= x;
+//                                q /= x;
+//                                r /= x;
+//                            }
+//                        }
+//                        s = sqrt(p*p + q*q + r*r);
+//                        if((s = (p >= 0 ? fabs(s) : -fabs(s))) != 0.0) {
+//                            if(k == m) {
+//                                if(l != m)
+//                                    a[n*k+(k-1)] = -a[n*k+(k-1)];
+//                            } else {
+//                                a[n*k+(k-1)] = -s * x;
+//                            }
+//                            p += s; // equations 11.6.24
+//                            x = p / s;
+//                            y = q / s;
+//                            z = r / s;
+//                            q /= p;
+//                            r /= p;
+//                            for(j = k; j < n; j++) { // row modification
+//                                p = a[n*k+j] + q * a[n*(k+1)+j];
+//                                if(k != (nn-1)) {
+//                                    p += r * a[n*(k+2)+j];
+//                                    a[n*(k+2)+j] -= p * z;
+//                                }
+//                                a[n*(k+1)+j] -= p * y;
+//                                a[n*k+j]  -= p * x;
+//                            }
+//                            mmin = nn < k+3 ? nn : k+3;
+//                            for(i = 0; i <= mmin; i++) { // column modification
+//                                p = x * a[n*i+k] + y * a[n*i+(k+1)];
+//                                if(k != (nn-1)) {
+//                                    p += z * a[n*i+(k+2)];
+//                                    a[n*i+(k+2)] -= p * r;
+//                                }
+//                                a[n*i+(k+1)] -= p * q;
+//                                a[n*i+k] -= p;
+//                            }
+//                            for(i = 0; i < n; i++) { // accumulate transformations
+//                                p = x * U[n*i+k] + y * U[n*i+(k+1)];
+//                                if(k != nn-1) {
+//                                    p += z * U[n*i+(k+2)];
+//                                    U[n*i+(k+2)] -= p * r;
+//                                }
+//                                U[n*i+(k+1)] -= p * q;
+//                                U[n*i+k] -= p;
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//        } while(l < nn-1);
+//    }
+//    if(anorm != 0.0) {
+//        for(nn = n-1; nn >= 0; nn--) {
+//            p = wr[nn];
+//            na = nn - 1;
+//            m = nn;
+//            a[n*nn+nn] = 1.0;
+//            for(i = nn-1; i >= 0; i--) {
+//                w = a[n*i+i] - p;
+//                r = 0;
+//                for(j = m; j <= nn; j++)
+//                    r += a[n*i+j] * a[n*j+nn];
+//                m = i;
+//
+//                t = w;
+//                if(t == 0.0)
+//                    t = DBL_EPSILON * anorm;
+//                a[n*i+nn] = -r/t;
+//                t = fabs(a[n*i+nn]); // overflow control
+//                if(DBL_EPSILON * t * t > 1)
+//                    for(j = i; j <= nn; j++)
+//                        a[n*j+nn] /= t;
+//            }
+//        }
+//        for(j = n-1; j >= 0; j--)
+//            for(i = 0; i < n; i++) {
+//                z = 0;
+//                for(k = 0; k <= j; k++)
+//                    z += U[n*i+k] * a[n*k+j];
+//                U[n*i+j] = z;
+//            }
+//    }
+//    return 0;
+//}
+//
+//void MatBalancing(double *a, double *sc, int n) {
+//    int i, j;
+//    int last = 0;
+//    double c, f, g, r, s;
+//    const double sqrdx = 2.0*2, rdx = 2.0;
+//
+//    while(!last) {
+//        last = 1;
+//        for(i = 0; i < n; i++) { // calculate row and column norms
+//            r = c = 0;
+//            for(j = 0; j < n; j++) {
+//                if(j != i) {
+//                    c += fabs(a[n*j+i]);
+//                    r += fabs(a[n*i+j]);
+//                }
+//            }
+//            if(c && r) {
+//                g = r / rdx;
+//                f = 1;
+//                s = c + r;
+//                // find integer power of machine radix taht comes closest to
+//                // balancing the matrix
+//                while(c < g) {
+//                    f *= rdx;
+//                    c *= sqrdx;
+//                }
+//                g = r * rdx;
+//                while(c > g) {
+//                    f /= rdx;
+//                    c /= sqrdx;
+//                }
+//                if((c + r) / f < 0.95 * s) {
+//                    last = 0;
+//                    g = 1 / f;
+//                    sc[i] *= f;
+//                    // apply similarity transformation
+//                    for(j = 0; j < n; j++)
+//                        a[n*i+j] *= g;
+//                    for(j = 0; j < n; j++)
+//                        a[n*j+i] *= f;
+//                }
+//            }
+//        }
+//    }
+//}
+//
+//void EigenUnbalance(double *U, double * sc, int n) {
+//    int i, j;
+//    for(i = 0; i < n; i++) {
+//        for(j = 0; j < n; j++) {
+//            U[n*i+j] *= sc[i];
+//        }
+//    }
+//}
+//
+//void HessenbBacktransform(double *a, double *U, int *p, int n) {
+//    int i, j, ip, k;
+//    for(ip = n - 2; ip > 0; ip--) {
+//        for(k = ip+1; k < n; k++) {
+//            U[n*k+ip] = a[n*k+(ip-1)];
+//        }
+//        i = p[ip];
+//        if(i != ip) {
+//            for(j = ip; j < n; j++) {
+//                U[n*ip+j] = U[n*i+j];
+//                U[n*i+j] = 0;
+//            }
+//            U[n*i+ip] = 1;
+//        }
+//    }
+//}
+//
+//void HessenbTransform(double *a, double * U, double * space, int n) {
+//
+//    int i, j, m;
+//    double x, y;
+//
+//    double * sc = space;
+//    int * p = (int *)(sc+n);
+//
+//    MatBalancing(a, sc, n);
+//
+//    for(m = 1; m < n-1; m++) {
+//        x = 0;
+//        i = m;
+//        for(j = m; j < n; j++) { // find the pivot
+//            if(fabs(a[n*j+(m-1)]) > fabs(x)) {
+//                x = a[n*j+(m-1)];
+//                i = j;
+//            }
+//        }
+//        p[m] = i;
+//        if(i != m) {// interchange rows and columns
+//            for(j = m-1; j < n; j++) {
+//                y = a[n*m+j];
+//                a[n*m+j] = a[n*i+j];
+//                a[n*i+j] = y;
+//            }
+//            for(j = 0; j < n; j++) {
+//                y = a[n*j+i];
+//                a[n*j+i] = a[n*j+m];
+//                a[n*j+m] = y;
+//            }
+//        }
+//        if(x) { // carry out the elimination
+//            for(i = m + 1; i < n; i++) {
+//                if((y = a[n*i+(m-1)]) != 0) {
+//                    y /= x;
+//                    a[n*i+(m-1)] = y;
+//                    for(j = m; j < n; j++)
+//                        a[n*i+j] -= y * a[n*m+j];
+//                    for(j = 0; j < n; j++)
+//                        a[n*j+m] += y * a[n*j+i];
+//                }
+//            }
+//        }
+//    }
+//    // set lower left elements to 0
+//    for(i = 2; i < n; i++) {
+//        for(j = 0; j < i - 1; j++) {
+//            a[n*i+j] = 0;
+//        }
+//    }
+//
+//    HessenbBacktransform(a, U, p, n);
+//}
+//
+//int eigenRealGen(double A[], int n, double root[], double work[]) {
+//    int status = 0, i;
+//
+//    double * U = work;
+//    double * space = U+n*n;
+//
+//    for(i = 0; i < n; i++) {
+//        U[n*i+i] = 1;
+//        space[i] = 1;
+//    }
+//
+//    HessenbTransform(A, U, space, n);
+//    status = EigenHessenbQRImplicit(A, n, root, U);
+//    EigenUnbalance(U, space, n);
+//    EigenSort(root, U, n);
+//    memcpy(A, U, n*n);
+//
+//    return(status);
+//}

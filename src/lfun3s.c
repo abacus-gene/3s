@@ -1,36 +1,5 @@
 #include "3s.h"
 
-extern int NFunCall;
-//extern struct BTEntry * GtreeTab[27];
-extern double para[MAXPARAMETERS];
-extern int LASTROUND;
-//extern int multiplier;
-//extern char * ModelStr[NMODELS];
-extern char * GtreeStr[35];
-extern char * stateStr[NALLSTATES];
-extern const int initStateMap[27];
-extern const int initStates[NINITIALSTATES];
-extern const int initStates2seq[NINITIALSTATES2SEQ];
-extern const int initStatesRaw2seq[NINITIALSTATES2SEQ];
-extern const int GtreeMapM0[35];
-extern const int GtreeMapM2[38];
-extern const int GtOffsetM0[35];
-extern const int GtOffsetM2[38];
-extern const int GtOffsetM2Pro[60];
-extern const int GtOffsetM2ProMax[60];
-extern const int GtOffsetM3MSci12[54];
-extern const int GtOffsetM3MSci13[73];
-extern const int GtOffsetM3MSci23[73];
-extern FILE *fout;
-extern FILE *frub;
-extern FILE *frst;
-extern FILE *fpGk;
-//extern double e1;
-//extern double e2;
-//extern double e3;
-
-//extern double avgb[2], varb[2];
-
 double lfun(double x[], int np);
 void setupGtreeTab();
 
@@ -65,6 +34,7 @@ int skipTree(int gtree);
 
 double lfun_treedata();
 void setupGtreeTab_treedata();
+void update_GtreeTypes(int GtreeTypeCnt[]);
 void preprocessM2SIM3s(int GtreeTypeCnt[]);
 void preprocessM2Pro(int GtreeTypeCnt[]);
 void preprocessM2ProMax(int GtreeTypeCnt[]);
@@ -93,33 +63,42 @@ double lfun(double x[], int np)
         return lfun_treedata();
 }
 
+//para[MAXPARAMETERS]:
+//Indix:       0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15
+//M0:     theta4 theta5   tau0   tau1 theta1 theta2 theta3
+//M1:     theta4 theta5   tau0   tau1 theta1 theta2 theta3  qbeta
+//M2:     theta4 theta5   tau0   tau1 theta1 theta2 theta3 thetaW    M12    M21    M13    M31    M23    M32    M53    M35
+//M3-12:  theta4 theta5   tau0   tau1 theta1 theta2 theta3      T thetaX thetaY  phi12  phi21
+//M3-13:  theta4 theta5   tau0   tau1 theta1 theta2 theta3      T thetaX thetaZ  phi13  phi31
+//M3-23:  theta4 theta5   tau0   tau1 theta1 theta2 theta3      T thetaY thetaZ  phi23  phi32
+
 void copyParams(double x[], int np) {
     int i;
-
+    int isM3 = (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23);
     memset(para, 0, MAXPARAMETERS * sizeof(double));
 
-    for (i = 0; i < np; i++)
-        para[com.paraNamesMap[i]] = x[i];
-
-    if (com.paraMap[1] == -1) para[1] = 1;
-    if (com.paraMap[3] == -1) para[3] = 0;
-    if (com.paraMap[4] == -1) para[4] = 1;
-    if (com.paraMap[5] == -1) para[5] = 1;
-    if (com.paraMap[6] == -1) para[6] = 1;
-
-    if (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23) {
-        if (com.paraMap[8] == -1) para[8] = (com.model != M3MSci23) ? para[4] : para[5];
-        if (com.paraMap[9] == -1) para[9] = (com.model == M3MSci12) ? para[5] : para[6];
+    for (i = 0; i < com.maxnp; i++) {
+        if (com.paraMap[i] != -1)
+            para[i] = x[com.paraMap[i]];
+        else if (i <= 7 || i <= 9 && isM3)
+            para[i] = 1;
     }
 
-    if (!LASTROUND && com.paraMap[3] != -1) {
+    if (!LASTROUND) {
         para[3] *= para[2]; // tau1 from xtau1
-        if (com.paraMap[7] != -1 && (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23))
+        if (isM3)
+            para[7] *= para[3]; // T from xT
+    }
+    else {
+        if (com.paraMap[3] == -1)
+            para[3] *= para[2]; // tau1 from xtau1
+        if (com.paraMap[7] == -1 && isM3)
             para[7] *= para[3]; // T from xT
     }
 
-    for (i = 0; i < np; i++)
-        para[com.paraNamesMap[i]] /= MULTIPLIER;
+    for (i = 0; i < com.maxnp; i++)
+        if (com.paraMap[i] != -1)
+            para[i] /= MULTIPLIER;
 }
 
  // This function computes the likelihood for parameters given in x under the
@@ -131,9 +110,7 @@ double lfun_seqdata()
 {
     int locus, itau1;
     double Li, lnL=0, z;
-
-    double parasave[MAXPARAMETERS], Pt[5*5], mbeta, q, p;
-
+    double parasave[MAXPARAMETERS], *Pt/*[5*5]*/, mbeta, q, p;
     char fpGkName[15];
 
     // fixed values for drosophila exon datasets
@@ -147,18 +124,19 @@ double lfun_seqdata()
 
     if (com.model == M1DiscreteBeta) {
         xtoy(para, parasave, MAXPARAMETERS);
-        
+
         q = parasave[7];
         mbeta = parasave[3] / parasave[2];
         p = mbeta / (1-mbeta)*q;
-        
+
+        Pt = com.tau1beta + com.ncatBeta;
         DiscreteBeta(Pt, com.tau1beta, p, q, com.ncatBeta, com.UseMedianBeta);
-        
+
         for (itau1 = 0; itau1 < com.ncatBeta; itau1++) {
             para[3] = com.tau1beta[itau1] * para[2];
-            
+
             update_limits();
-            
+
             if (data.ndata - data.twoSeqLoci) {
                 priorM0_3seq();
             }
@@ -188,7 +166,8 @@ double lfun_seqdata()
             lnL += z + log(Li);
         }
         para[3] = parasave[3];
-    } else {
+    }
+    else {
         update_limits();
 
         if(com.model == M0) {
@@ -243,7 +222,7 @@ double lfun_seqdata()
         } else {
             error2("model not implemented yet!");
         }
-        
+
         // output of gene tree posteriors
         if (LASTROUND == 2 && com.model != M1DiscreteBeta) {
             if (stree.speciestree)
@@ -281,77 +260,88 @@ double lfun_seqdata()
             fclose(fpGk);
         }
     }
+
     return(-lnL);
 }
 
 double lfun_treedata()
 {
-    int tree;
-    double Li, lnL = 0;
-    double *b;
-    double tau0, tau1, treeHight;
+    int tree, itau1;
+    double Li, lnL=0, z;
+    double parasave[MAXPARAMETERS], *Pt/*[5*5]*/, mbeta, q, p;
     enum { NGTREETYPES = 6 };
     STATIC_ASSERT(MAXGTREETYPES >= NGTREETYPES);
     int GtreeTypeCnt[NGTREETYPES + 1];
 
-    if (com.model == M1DiscreteBeta)
-        error2("model not implemented yet!");
-
     NFunCall++;
 
-    tau0 = para[2];
-    tau1 = para[3];
+    if (com.model == M1DiscreteBeta) {
+        xtoy(para, parasave, MAXPARAMETERS);
 
-    for (tree = 0, b = data.Bij; tree < data.ndata; tree++, b += 2) {
-        if (data.initState[stree.sptree][tree] >= NSTATES)
-            error2("not implemented");
+        q = parasave[7];
+        mbeta = parasave[3] / parasave[2];
+        p = mbeta / (1-mbeta)*q;
 
-        treeHight = b[0] + b[1];
+        Pt = com.tau1beta + com.ncatBeta;
+        DiscreteBeta(Pt, com.tau1beta, p, q, com.ncatBeta, com.UseMedianBeta);
 
-        if (treeHight > tau0) {
-            if (b[1] > tau0)
-                data.GtreeType[tree] = 6;
-            else if (b[1] > tau1)
-                data.GtreeType[tree] = 5;
-            else
-                data.GtreeType[tree] = 3;
+        for (itau1 = 0; itau1 < com.ncatBeta; itau1++) {
+            para[3] = com.tau1beta[itau1] * para[2];
+
+            update_GtreeTypes(GtreeTypeCnt);
+
+            if (com.nthreads >= 1) {
+#pragma omp parallel for default(none) shared(com, stree, data, itau1) num_threads(com.nthreads)
+                for (tree = 0; tree < data.ndata; tree++) {
+                    com.pDclass[itau1*data.ndata+tree] = lnpD_tree(tree);
+                }
+            }
+            else {
+#pragma omp parallel for default(none) shared(com, stree, data, itau1)
+                for (tree = 0; tree < data.ndata; tree++) {
+                    com.pDclass[itau1*data.ndata+tree] = lnpD_tree(tree);
+                }
+            }
         }
-        else if (treeHight > tau1) {
-            if (b[1] > tau1)
-                data.GtreeType[tree] = 4;
-            else
-                data.GtreeType[tree] = 2;
+        for (tree=0, lnL=0; tree < data.ndata; tree++) {
+            for (itau1=0, z=-1e300; itau1 < com.ncatBeta; itau1++) {
+                z = max2(z, com.pDclass[itau1*data.ndata+tree]);
+            }
+            for (itau1=0, Li=0; itau1 < com.ncatBeta; itau1++) {
+                Li += 1.0/com.ncatBeta * exp(com.pDclass[itau1*data.ndata+tree] - z);
+            }
+            lnL += z + log(Li);
         }
-        else
-            data.GtreeType[tree] = 1;
-
-        GtreeTypeCnt[data.GtreeType[tree]]++;
-    }
-
-    if (com.model == M2SIM3s)
-        preprocessM2SIM3s(GtreeTypeCnt);
-    else if (com.model == M2Pro)
-        preprocessM2Pro(GtreeTypeCnt);
-    else if (com.model == M2ProMax)
-        preprocessM2ProMax(GtreeTypeCnt);
-
-    // now compute tree-specific likelihood
-    if (com.nthreads >= 1) {
-#pragma omp parallel for default(none) reduction(+:lnL) private(Li) shared(com, stree, data) num_threads(com.nthreads)
-        for (tree = 0; tree < data.ndata; tree++) {
-            Li = lnpD_tree(tree);
-            lnL += Li;
-        }
+        para[3] = parasave[3];
     }
     else {
+        update_GtreeTypes(GtreeTypeCnt);
+
+        if (com.model == M2SIM3s)
+            preprocessM2SIM3s(GtreeTypeCnt);
+        else if (com.model == M2Pro)
+            preprocessM2Pro(GtreeTypeCnt);
+        else if (com.model == M2ProMax)
+            preprocessM2ProMax(GtreeTypeCnt);
+
+        // now compute tree-specific likelihood
+        if (com.nthreads >= 1) {
+#pragma omp parallel for default(none) reduction(+:lnL) private(Li) shared(com, stree, data) num_threads(com.nthreads)
+            for (tree = 0; tree < data.ndata; tree++) {
+                Li = lnpD_tree(tree);
+                lnL += Li;
+            }
+        }
+        else {
 #pragma omp parallel for default(none) reduction(+:lnL) private(Li) shared(com, stree, data)
-        for (tree = 0; tree < data.ndata; tree++) {
-            Li = lnpD_tree(tree);
-            lnL += Li;
+            for (tree = 0; tree < data.ndata; tree++) {
+                Li = lnpD_tree(tree);
+                lnL += Li;
+            }
         }
     }
 
-    return (-lnL);
+    return(-lnL);
 }
 
 static inline void getParams(double *theta4, double *theta5, double *tau0, double *tau1, double *theta1, double *theta2, double *theta3) {
@@ -368,7 +358,7 @@ static inline void computeMultinomProbs(int Gtree, int igrid, int GtIndex, doubl
     double b[2];
     int i;
     //struct BTEntry * gtt = GtreeTab[0];
-    struct BTEntry * gtt = com.GtreeTab[0];
+    BTEntry * gtt = com.GtreeTab[0];
     
     gtt[GtIndex].b(t[0], t[1], theta12, b);
     
@@ -392,7 +382,7 @@ void priorM0_3seq() {
     int j, igrid, Gtree, ixw[2], K=com.npoints;
     const double *xI=NULL, *wI=NULL;
     double /*b[2],*/ s[2], t[2], y[2], yup[2];
-    struct BTEntry * gtt;
+    BTEntry * gtt;
     
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
     
@@ -452,7 +442,7 @@ void priorM2SIM3s_3seq() {
     double /*b[2],*/ s[2], t[2], y[2], yup[2], t01[2];
     double * Q_C1, * Q_C2, * Q_C3, * Pt1, * Pt0, * Ptau1t1, *Ptau1, * Ptau1_C1, * Ptau1_C2, * Ptau1_C3, * work, PG1a, PG1a123=0, PG1a113=0, PG1a223=0;
     //double c, m, a; //, PSG;
-    struct BTEntry * gtt;
+    BTEntry * gtt;
 
     Q_C3 = com.space;
     if(!Q_C3) error2("oom allocating Q_C3 in priorM2SIM3s_3seq");
@@ -466,8 +456,8 @@ void priorM2SIM3s_3seq() {
 #ifdef FIXM12
     M21 = M12 = 0.000001;
 #else
-    M12 = para[7];
-    M21 = para[8];
+    M12 = para[8];
+    M21 = para[9];
 #endif
 
     GaussLegendreRule(&xI, &wI, com.npoints);
@@ -545,14 +535,14 @@ void priorM2SIM3s_3seq() {
 }
 
 void priorM2Pro_3seq() {
-    double theta4, theta5, theta1, theta2, theta3, tau0, tau1, M12 = 0.0, M21 = 0.0, M13 = 0.0, M31 = 0.0, M23 = 0.0, M32 = 0.0, coeff;
+    double theta4, theta5, theta1, theta2, theta3, thetaW, tau0, tau1, M12 = 0.0, M21 = 0.0, M13 = 0.0, M31 = 0.0, M23 = 0.0, M32 = 0.0, coeff;
     int i, j, igrid, Gtree, ixw[2], K = com.npoints, initState, GtreeType;
     const double *xI = NULL, *wI = NULL;
     double /*b[2],*/ s[2], t[2], y[2], yup[2], t01[2];
     double *Q_C5, *Q_C6, *Pt_C5, *Pt_C6, *Ptau1_C5, *Ptau1_C5_ex, *Pr, *work;
     double *P5 = NULL;
     double exptaugap[4];
-    struct BTEntry * gtt;
+    BTEntry * gtt;
     enum { NGTREETYPES = 6 };
     STATIC_ASSERT(MAXGTREETYPES >= NGTREETYPES);
 
@@ -569,12 +559,13 @@ void priorM2Pro_3seq() {
 
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
 
-    M12 = para[7];
-    M21 = para[8];
-    M13 = para[9];
-    M31 = para[10];
-    M23 = para[11];
-    M32 = para[12];
+    thetaW = para[7];
+    M12 = para[8];
+    M21 = para[9];
+    M13 = para[10];
+    M31 = para[11];
+    M23 = para[12];
+    M32 = para[13];
 
     GaussLegendreRule(&xI, &wI, com.npoints);
 
@@ -585,8 +576,8 @@ void priorM2Pro_3seq() {
 
     exptaugap[0] = exp(-6 * (tau0 - tau1) / theta5);
     exptaugap[1] = exp(-2 * (tau0 - tau1) / theta5);
-    exptaugap[2] = exp(-2 * (tau0 - tau1) / theta3);
-    exptaugap[3] = exp(-6 * (tau0 - tau1) / theta3);
+    exptaugap[2] = exp(-2 * (tau0 - tau1) / thetaW);
+    exptaugap[3] = exp(-6 * (tau0 - tau1) / thetaW);
 
     for (i = 0; i < NINITIALSTATES; i++) {
         j = initStates[i];
@@ -658,13 +649,13 @@ void priorM2Pro_3seq() {
 }
 
 void priorM2ProMax_3seq() {
-    double theta4, theta5, theta1, theta2, theta3, tau0, tau1, M12 = 0.0, M21 = 0.0, M13 = 0.0, M31 = 0.0, M23 = 0.0, M32 = 0.0, M53 = 0.0, M35 = 0.0, coeff;
+    double theta4, theta5, theta1, theta2, theta3, thetaW, tau0, tau1, M12 = 0.0, M21 = 0.0, M13 = 0.0, M31 = 0.0, M23 = 0.0, M32 = 0.0, M53 = 0.0, M35 = 0.0, coeff;
     int i, j, igrid, Gtree, ixw[2], K = com.npoints, initState, GtreeType;
     const double *xI = NULL, *wI = NULL;
     double /*b[2],*/ s[2], t[2], y[2], yup[2], t01[2];
     double *Q_C5, *Q_C6, *Q_C7, *Q_C8, *Pt_C5, *Pt_C6, *Pt_C7, *Pt_C8, *Ptau1_C5, *Ptau1_C5_ex, *Ptaugap_C7, *Ptaugap_C7_ex, *Ptaugap_C8, *Ptaugap_C8_ex, *Pr, *work;
     double *P5 = NULL, *P8 = NULL;
-    struct BTEntry * gtt;
+    BTEntry * gtt;
     enum { NGTREETYPES = 6 };
     STATIC_ASSERT(MAXGTREETYPES >= NGTREETYPES);
 
@@ -689,21 +680,22 @@ void priorM2ProMax_3seq() {
 
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
 
-    M12 = para[7];
-    M21 = para[8];
-    M13 = para[9];
-    M31 = para[10];
-    M23 = para[11];
-    M32 = para[12];
-    M53 = para[13];
-    M35 = para[14];
+    thetaW = para[7];
+    M12 = para[8];
+    M21 = para[9];
+    M13 = para[10];
+    M31 = para[11];
+    M23 = para[12];
+    M32 = para[13];
+    M53 = para[14];
+    M35 = para[15];
 
     GaussLegendreRule(&xI, &wI, com.npoints);
 
     GenerateQ5(Q_C5, theta1, theta2, theta3, M12, M21, M13, M31, M23, M32);
     GenerateQ6(Q_C6, theta1, theta2, theta3, M12, M21, M13, M31, M23, M32);
-    GenerateQ7(Q_C7, theta5, theta3, M53, M35);
-    GenerateQ8(Q_C8, theta5, theta3, M53, M35);
+    GenerateQ7(Q_C7, theta5, thetaW, M53, M35);
+    GenerateQ8(Q_C8, theta5, thetaW, M53, M35);
 
     computePMatrix(tau1, Q_C5, C5, Ptau1_C5, work);
     computePMatrix(tau0 - tau1, Q_C7, C7, Ptaugap_C7, work);
@@ -807,7 +799,7 @@ void priorM3MSci12_3seq() {
     const double *xI=NULL, *wI=NULL;
     double /*b[2],*/ s[2], t[2], y[2], yup[2];
     double exptau1T[4], Pr[7];
-    struct BTEntry * gtt;
+    BTEntry * gtt;
 
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
 
@@ -884,7 +876,7 @@ void priorM3MSci13_3seq() {
     const double *xI=NULL, *wI=NULL;
     double /*b[2],*/ s[2], t[2], y[2], yup[2];
     double exptaugapT[3], exptau0T[2], exptaugap, Pr[11];
-    struct BTEntry * gtt;
+    BTEntry * gtt;
 
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
 
@@ -976,7 +968,7 @@ void priorM3MSci23_3seq() {
     const double *xI=NULL, *wI=NULL;
     double /*b[2],*/ s[2], t[2], y[2], yup[2];
     double exptaugapT[3], exptau0T[2], exptaugap, Pr[11];
-    struct BTEntry * gtt;
+    BTEntry * gtt;
 
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
 
@@ -1148,8 +1140,8 @@ void priorM2SIM3s_2seq() {
     M12 = 0.000001;
     M21 = 0.000001;
 #else
-    M12 = para[7];
-    M21 = para[8];
+    M12 = para[8];
+    M21 = para[9];
 #endif
 
     GaussLegendreRule(&xI, &wI, com.npoints);
@@ -1223,7 +1215,7 @@ void priorM2SIM3s_2seq() {
 }
 
 void priorM2Pro_2seq() {
-    double theta4, theta5, theta1, theta2, theta3, theta123, theta53, tau0, tau1, M12, M21, M13, M31, M23, M32, coeff;
+    double theta4, theta5, theta1, theta2, theta3, thetaW, theta123, theta5W, tau0, tau1, M12, M21, M13, M31, M23, M32, coeff;
     int i, j, igrid, segm, ixw, K = com.npoints, index2seq = MAXGTREES, initState, GtreeType;
     const double *xI = NULL, *wI = NULL;
     double /*a, b, c, m,*/ s, t, y, yup;
@@ -1242,15 +1234,16 @@ void priorM2Pro_2seq() {
 
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
 
-    theta53 = theta5 + theta3;
-    theta123 = theta1 + theta2 + theta3;
+    thetaW = para[7];
+    M12 = para[8];
+    M21 = para[9];
+    M13 = para[10];
+    M31 = para[11];
+    M23 = para[12];
+    M32 = para[13];
 
-    M12 = para[7];
-    M21 = para[8];
-    M13 = para[9];
-    M31 = para[10];
-    M23 = para[11];
-    M32 = para[12];
+    theta5W = theta5 + thetaW;
+    theta123 = theta1 + theta2 + theta3;
 
     GaussLegendreRule(&xI, &wI, com.npoints);
 
@@ -1259,7 +1252,7 @@ void priorM2Pro_2seq() {
     computePMatrix(tau1, Q_C6, C6, Ptau1_C6, work);
 
     exptaugap[0] = exp(-2 * (tau0 - tau1) / theta5);
-    exptaugap[1] = exp(-2 * (tau0 - tau1) / theta3);
+    exptaugap[1] = exp(-2 * (tau0 - tau1) / thetaW);
 
     for (i = 0; i < NINITIALSTATES2SEQ; i++) {
         j = initStates2seq[i];
@@ -1275,7 +1268,7 @@ void priorM2Pro_2seq() {
         if (GtreeType == 1)
             yup = 2 * tau1 / (2 * tau1 + theta123);
         else if (GtreeType == 2)
-            yup = 2 * (tau0 - tau1) / (2 * (tau0 - tau1) + theta53);
+            yup = 2 * (tau0 - tau1) / (2 * (tau0 - tau1) + theta5W);
         else if (GtreeType == 3)
             yup = 1;
 
@@ -1291,8 +1284,8 @@ void priorM2Pro_2seq() {
             if (GtreeType == 1)
                 computePMatrix(theta123 * t / 2, Q_C6, C6, Pt_C6, work);
             else if (GtreeType == 2) {
-                expt[0] = exp(-theta53 * t / theta5);
-                expt[1] = exp(-theta53 * t / theta3);
+                expt[0] = exp(-theta5W * t / theta5);
+                expt[1] = exp(-theta5W * t / thetaW);
             }
             else if (GtreeType == 3)
                 expt[2] = exp(-t);
@@ -1313,9 +1306,9 @@ void priorM2Pro_2seq() {
                         + Pt_C6[C6 * initState + 5] / theta3);
                 }
                 else if (GtreeType == 2) {
-                    com.wwprior[index2seq][segm * K + igrid] *= theta53 * (
+                    com.wwprior[index2seq][segm * K + igrid] *= theta5W * (
                           Ptau1_C6_ex[C6_ex * initState + 0] * expt[0] / theta5
-                        + Ptau1_C6_ex[C6_ex * initState + 2] * expt[1] / theta3);
+                        + Ptau1_C6_ex[C6_ex * initState + 2] * expt[1] / thetaW);
                 }
                 else if (GtreeType == 3)
                     com.wwprior[index2seq][segm * K + igrid] *= Ptau1_C6_ex[C6_ex * initState + 3] * expt[2];
@@ -1323,7 +1316,7 @@ void priorM2Pro_2seq() {
                 if (GtreeType == 1)
                     com.bp0124[index2seq][segm * K + igrid] = theta123 * t / 2;
                 else if (GtreeType == 2)
-                    com.bp0124[index2seq][segm * K + igrid] = theta53 * t / 2 + tau1;
+                    com.bp0124[index2seq][segm * K + igrid] = theta5W * t / 2 + tau1;
                 else if (GtreeType == 3)
                     com.bp0124[index2seq][segm * K + igrid] = theta4 * t / 2 + tau0;
             }
@@ -1334,7 +1327,7 @@ void priorM2Pro_2seq() {
 }
 
 void priorM2ProMax_2seq() {
-    double theta4, theta5, theta1, theta2, theta3, theta123, theta53, tau0, tau1, M12, M21, M13, M31, M23, M32, M53, M35, coeff;
+    double theta4, theta5, theta1, theta2, theta3, thetaW, theta123, theta5W, tau0, tau1, M12, M21, M13, M31, M23, M32, M53, M35, coeff;
     int i, j, igrid, segm, ixw, K = com.npoints, index2seq = MAXGTREES, initState, GtreeType;
     const double *xI = NULL, *wI = NULL;
     double /*a, b, c, m,*/ s, t, y, yup;
@@ -1357,22 +1350,23 @@ void priorM2ProMax_2seq() {
 
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
 
-    theta53 = theta5 + theta3;
-    theta123 = theta1 + theta2 + theta3;
+    thetaW = para[7];
+    M12 = para[8];
+    M21 = para[9];
+    M13 = para[10];
+    M31 = para[11];
+    M23 = para[12];
+    M32 = para[13];
+    M53 = para[14];
+    M35 = para[15];
 
-    M12 = para[7];
-    M21 = para[8];
-    M13 = para[9];
-    M31 = para[10];
-    M23 = para[11];
-    M32 = para[12];
-    M53 = para[13];
-    M35 = para[14];
+    theta5W = theta5 + thetaW;
+    theta123 = theta1 + theta2 + theta3;
 
     GaussLegendreRule(&xI, &wI, com.npoints);
 
     GenerateQ6(Q_C6, theta1, theta2, theta3, M12, M21, M13, M31, M23, M32);
-    GenerateQ8(Q_C8, theta5, theta3, M53, M35);
+    GenerateQ8(Q_C8, theta5, thetaW, M53, M35);
 
     computePMatrix(tau1, Q_C6, C6, Ptau1_C6, work);
     computePMatrix(tau0 - tau1, Q_C8, C8, Ptaugap_C8, work);
@@ -1394,7 +1388,7 @@ void priorM2ProMax_2seq() {
         if (GtreeType == 1)
             yup = 2 * tau1 / (2 * tau1 + theta123);
         else if (GtreeType == 2)
-            yup = 2 * (tau0 - tau1) / (2 * (tau0 - tau1) + theta53);
+            yup = 2 * (tau0 - tau1) / (2 * (tau0 - tau1) + theta5W);
         else if (GtreeType == 3)
             yup = 1;
 
@@ -1410,7 +1404,7 @@ void priorM2ProMax_2seq() {
             if (GtreeType == 1)
                 computePMatrix(theta123 * t / 2, Q_C6, C6, Pt_C6, work);
             else if (GtreeType == 2)
-                computePMatrix(theta53 * t / 2, Q_C8, C8, Pt_C8, work);
+                computePMatrix(theta5W * t / 2, Q_C8, C8, Pt_C8, work);
             else if (GtreeType == 3)
                 expt = exp(-t);
 
@@ -1430,13 +1424,13 @@ void priorM2ProMax_2seq() {
                         + Pt_C6[C6 * initState + 5] / theta3);
                 }
                 else if (GtreeType == 2) {
-                    com.wwprior[index2seq][segm * K + igrid] *= theta53 * ((
+                    com.wwprior[index2seq][segm * K + igrid] *= theta5W * ((
                           Ptau1_C6_ex[C6_ex * initState + 0] * Pt_C8[C8 * 0 + 0]
                         + Ptau1_C6_ex[C6_ex * initState + 1] * Pt_C8[C8 * 1 + 0]
                         + Ptau1_C6_ex[C6_ex * initState + 2] * Pt_C8[C8 * 2 + 0]) / theta5 + (
                           Ptau1_C6_ex[C6_ex * initState + 0] * Pt_C8[C8 * 0 + 2]
                         + Ptau1_C6_ex[C6_ex * initState + 1] * Pt_C8[C8 * 1 + 2]
-                        + Ptau1_C6_ex[C6_ex * initState + 2] * Pt_C8[C8 * 2 + 2]) / theta3);
+                        + Ptau1_C6_ex[C6_ex * initState + 2] * Pt_C8[C8 * 2 + 2]) / thetaW);
                 }
                 else if (GtreeType == 3)
                     com.wwprior[index2seq][segm * K + igrid] *= Ptau1_C6_ex[C6_ex * initState + 3] * expt;
@@ -1444,7 +1438,7 @@ void priorM2ProMax_2seq() {
                 if (GtreeType == 1)
                     com.bp0124[index2seq][segm * K + igrid] = theta123 * t / 2;
                 else if (GtreeType == 2)
-                    com.bp0124[index2seq][segm * K + igrid] = theta53 * t / 2 + tau1;
+                    com.bp0124[index2seq][segm * K + igrid] = theta5W * t / 2 + tau1;
                 else if (GtreeType == 3)
                     com.bp0124[index2seq][segm * K + igrid] = theta4 * t / 2 + tau0;
             }
@@ -1826,9 +1820,9 @@ double lnpD_locus (int locus)
     int /*chain=data.chain[locus], is=initStateMap[initState],*/ nGtree, offset;
     const int * GtOffset;
     double lnL=0, lmax=data.lnLmax[stree.sptree][locus], pD=0, pGk[MAXGTREETYPES*3] = {0}, f[3] = {0, 0, 0}, p[5], /*p12,*/ b[2], lp1, lp2, /*sump12,*/ tmp, **bp0124, **wwprior; //, curpD[3];
-    char ** GtStr, errorStr[130];
+    char /*** GtStr,*/ errorStr[130];
     //struct BTEntry * gtt = GtreeTab[0];
-    struct BTEntry * gtt = com.GtreeTab[0];
+    BTEntry * gtt = com.GtreeTab[0];
     /* lmax can be dynamically adjusted. */
 
 #ifdef DEBUG_GTREE_PROB
@@ -2237,7 +2231,7 @@ double lnpD_locus (int locus)
 
         bp0124 = &com.bp0124[offset];
         wwprior = &com.wwprior[offset];
-        GtStr = &GtreeStr[offset];
+        //GtStr = &GtreeStr[offset];
         GtOffset = &GtOffset[offset];
 
         for(Gtree=0; Gtree < nGtree; Gtree++) {
@@ -3031,6 +3025,40 @@ int skipTree(int gtree) {
     return !lociSum;
 }
 
+void update_GtreeTypes(int GtreeTypeCnt[]) {
+    int tree;
+    double *b, tau0, tau1, treeHight;
+
+    tau0 = para[2];
+    tau1 = para[3];
+
+    for (tree = 0, b = data.Bij; tree < data.ndata; tree++, b += 2) {
+        if (data.initState[stree.sptree][tree] >= NSTATES)
+            error2("not implemented");
+
+        treeHight = b[0] + b[1];
+
+        if (treeHight > tau0) {
+            if (b[1] > tau0)
+                data.GtreeType[tree] = 6;
+            else if (b[1] > tau1)
+                data.GtreeType[tree] = 5;
+            else
+                data.GtreeType[tree] = 3;
+        }
+        else if (treeHight > tau1) {
+            if (b[1] > tau1)
+                data.GtreeType[tree] = 4;
+            else
+                data.GtreeType[tree] = 2;
+        }
+        else
+            data.GtreeType[tree] = 1;
+
+        GtreeTypeCnt[data.GtreeType[tree]]++;
+    }
+}
+
 void preprocessM2SIM3s(int GtreeTypeCnt[]) {
     double theta4, theta5, theta1, theta2, theta3, tau0, tau1, M12=0.0, M21=0.0;
     double * Q_C1, * Q_C2, * Q_C3, * Pt1, * Pt0, * Ptau1t1, /**Ptau1,*/ * Ptau1_C1, * Ptau1_C2, * Ptau1_C3, * work, /*PG1a,*/ PG1a123=0, PG1a113=0, PG1a223=0;
@@ -3047,8 +3075,8 @@ void preprocessM2SIM3s(int GtreeTypeCnt[]) {
 #ifdef FIXM12
     M21 = M12 = 0.000001;
 #else
-    M12 = para[7];
-    M21 = para[8];
+    M12 = para[8];
+    M21 = para[9];
 #endif
 
     GenerateQ1SIM3S(Q_C1, C1, theta1, theta2, 0, M12, M21);
@@ -3063,7 +3091,7 @@ void preprocessM2SIM3s(int GtreeTypeCnt[]) {
 }
 
 void preprocessM2Pro(int GtreeTypeCnt[]) {
-    double theta4, theta5, theta1, theta2, theta3, tau0, tau1, M12, M21, M13, M31, M23, M32;
+    double theta4, theta5, theta1, theta2, theta3, thetaW, tau0, tau1, M12, M21, M13, M31, M23, M32;
     double *Q_C5, *Q_C6, *Ptau1_C5, *Ptau1_C5_ex, *exptaugap, *work;
     int i, j;
 
@@ -3078,12 +3106,13 @@ void preprocessM2Pro(int GtreeTypeCnt[]) {
 
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
 
-    M12 = para[7];
-    M21 = para[8];
-    M13 = para[9];
-    M31 = para[10];
-    M23 = para[11];
-    M32 = para[12];
+    thetaW = para[7];
+    M12 = para[8];
+    M21 = para[9];
+    M13 = para[10];
+    M31 = para[11];
+    M23 = para[12];
+    M32 = para[13];
 
     GenerateQ5(Q_C5, theta1, theta2, theta3, M12, M21, M13, M31, M23, M32);
     GenerateQ6(Q_C6, theta1, theta2, theta3, M12, M21, M13, M31, M23, M32);
@@ -3091,8 +3120,8 @@ void preprocessM2Pro(int GtreeTypeCnt[]) {
     if (GtreeTypeCnt[3] + GtreeTypeCnt[4] + GtreeTypeCnt[5] + GtreeTypeCnt[6]) {
         exptaugap[0] = exp(-6 * (tau0 - tau1) / theta5);
         exptaugap[1] = exp(-2 * (tau0 - tau1) / theta5);
-        exptaugap[2] = exp(-2 * (tau0 - tau1) / theta3);
-        exptaugap[3] = exp(-6 * (tau0 - tau1) / theta3);
+        exptaugap[2] = exp(-2 * (tau0 - tau1) / thetaW);
+        exptaugap[3] = exp(-6 * (tau0 - tau1) / thetaW);
 
         if (GtreeTypeCnt[4] + GtreeTypeCnt[5] + GtreeTypeCnt[6]) {
             computePMatrix(tau1, Q_C5, C5, Ptau1_C5, work);
@@ -3120,7 +3149,7 @@ void preprocessM2Pro(int GtreeTypeCnt[]) {
 }
 
 void preprocessM2ProMax(int GtreeTypeCnt[]) {
-    double theta4, theta5, theta1, theta2, theta3, tau0, tau1, M12, M21, M13, M31, M23, M32, M53, M35;
+    double theta4, theta5, theta1, theta2, theta3, thetaW, tau0, tau1, M12, M21, M13, M31, M23, M32, M53, M35;
     double *Q_C5, *Q_C6, *Q_C7, *Q_C8, *Ptau1_C5, *Ptau1_C5_ex, *Ptaugap_C7, *Ptaugap_C7_ex, *Ptaugap_C8, *Ptaugap_C8_ex, *work;
     int i, j;
 
@@ -3140,19 +3169,20 @@ void preprocessM2ProMax(int GtreeTypeCnt[]) {
 
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
 
-    M12 = para[7];
-    M21 = para[8];
-    M13 = para[9];
-    M31 = para[10];
-    M23 = para[11];
-    M32 = para[12];
-    M53 = para[13];
-    M35 = para[14];
+    thetaW = para[7];
+    M12 = para[8];
+    M21 = para[9];
+    M13 = para[10];
+    M31 = para[11];
+    M23 = para[12];
+    M32 = para[13];
+    M53 = para[14];
+    M35 = para[15];
 
     GenerateQ5(Q_C5, theta1, theta2, theta3, M12, M21, M13, M31, M23, M32);
     GenerateQ6(Q_C6, theta1, theta2, theta3, M12, M21, M13, M31, M23, M32);
-    GenerateQ7(Q_C7, theta5, theta3, M53, M35);
-    GenerateQ8(Q_C8, theta5, theta3, M53, M35);
+    GenerateQ7(Q_C7, theta5, thetaW, M53, M35);
+    GenerateQ8(Q_C8, theta5, thetaW, M53, M35);
 
     if (GtreeTypeCnt[3] + GtreeTypeCnt[4] + GtreeTypeCnt[5] + GtreeTypeCnt[6]) {
         computePMatrix(tau0 - tau1, Q_C8, C8, Ptaugap_C8, work);
@@ -3234,7 +3264,7 @@ double treeProbM0(int tree) {
     int initState = data.initState[stree.sptree][tree];
     int topology = data.topology[stree.sptree][tree];
     int GtreeType = data.GtreeType[tree];
-    struct BTEntry *gtt = com.GtreeTab[0];
+    BTEntry *gtt = com.GtreeTab[0];
 
     switch (initState)
     {
@@ -3326,7 +3356,7 @@ double treeProbM2SIM3s(int tree) {
     int initState = data.initState[stree.sptree][tree];
     int topology = data.topology[stree.sptree][tree];
     int GtreeType = data.GtreeType[tree];
-    struct BTEntry *gtt = com.GtreeTab[0];
+    BTEntry *gtt = com.GtreeTab[0];
 
     switch (initState)
     {
@@ -3459,7 +3489,7 @@ double treeProbM2Pro(int tree) {
     int initState = data.initState[stree.sptree][tree];
     int topology = data.topology[stree.sptree][tree];
     int GtreeType = data.GtreeType[tree];
-    struct BTEntry *gtt = com.GtreeTab[0];
+    BTEntry *gtt = com.GtreeTab[0];
 
     Q_C5 = com.space;
     Q_C6 = &Q_C5[C5 * C5];
@@ -3518,7 +3548,7 @@ double treeProbM2ProMax(int tree) {
     int initState = data.initState[stree.sptree][tree];
     int topology = data.topology[stree.sptree][tree];
     int GtreeType = data.GtreeType[tree];
-    struct BTEntry *gtt = com.GtreeTab[0];
+    BTEntry *gtt = com.GtreeTab[0];
 
     Q_C5 = com.space;
     Q_C6 = &Q_C5[C5 * C5];
@@ -3600,7 +3630,7 @@ double treeProbM3MSci12(int tree) {
     int initState = data.initState[stree.sptree][tree];
     int topology = data.topology[stree.sptree][tree];
     int GtreeType = data.GtreeType[tree];
-    struct BTEntry *gtt = com.GtreeTab[0];
+    BTEntry *gtt = com.GtreeTab[0];
 
     if (GtreeType == 1)
         GtreeType += (b[1] > T) ? 7 : ((b[0] + b[1] > T) ? 6 : 0);
@@ -3733,7 +3763,7 @@ double treeProbM3MSci13(int tree) {
     int initState = data.initState[stree.sptree][tree];
     int topology = data.topology[stree.sptree][tree];
     int GtreeType = data.GtreeType[tree];
-    struct BTEntry *gtt = com.GtreeTab[0];
+    BTEntry *gtt = com.GtreeTab[0];
 
     if (GtreeType == 1)
         GtreeType += (b[1] > T) ? 7 : ((b[0] + b[1] > T) ? 6 : 0);
@@ -3881,7 +3911,7 @@ double treeProbM3MSci23(int tree) {
     int initState = data.initState[stree.sptree][tree];
     int topology = data.topology[stree.sptree][tree];
     int GtreeType = data.GtreeType[tree];
-    struct BTEntry *gtt = com.GtreeTab[0];
+    BTEntry *gtt = com.GtreeTab[0];
 
     if (GtreeType == 1)
         GtreeType += (b[1] > T) ? 7 : ((b[0] + b[1] > T) ? 6 : 0);
@@ -4557,10 +4587,10 @@ void helper_G1(double x0, double x1, double* P6, double* exptaugap, double* Pr) 
 
 void helper_G2(double x0, double x1, double* P6, double* exptaugap, double* Pr) {
     double theta5 = para[1];
-    double theta3 = para[6];
-    double theta53 = para[1] + para[6];
-    double exp0 = exp(-theta53 * x0 / theta5);
-    double exp1 = exp(-theta53 * x0 / theta3);
+    double thetaW = para[7];
+    double theta5W = para[1] + para[7];
+    double exp0 = exp(-theta5W * x0 / theta5);
+    double exp1 = exp(-theta5W * x0 / thetaW);
     double P6_ex[C6_ex - 1];
     int i;
 
@@ -4568,9 +4598,9 @@ void helper_G2(double x0, double x1, double* P6, double* exptaugap, double* Pr) 
         P6_ex[0] = P6[C6 * i + 0] + P6[C6 * i + 1] + P6[C6 * i + 2];
         P6_ex[2] = P6[C6 * i + 5];
 
-        Pr[i] = theta53 * (
+        Pr[i] = theta5W * (
               P6_ex[0] * exp0 / theta5
-            + P6_ex[2] * exp1 / theta3);
+            + P6_ex[2] * exp1 / thetaW);
     }
 }
 
@@ -4593,24 +4623,24 @@ void helper_G3(double x0, double x1, double* P6, double* exptaugap, double* Pr) 
 
 void helper_G4(double x0, double x1, double* P6, double* exptaugap, double* Pr) {
     double theta5 = para[1];
-    double theta3 = para[6];
-    double theta53 = para[1] + para[6];
+    double thetaW = para[7];
+    double theta5W = para[1] + para[7];
 
-    Pr[0] = theta53 * x0 * exp(-theta53 * x0 * (2 * x1 + 1) / theta5) / theta5;
-    Pr[1] = theta53 * x0 * exp(-theta53 * x0 * (2 * x1 + 1) / theta3) / theta3;
+    Pr[0] = theta5W * x0 * exp(-theta5W * x0 * (2 * x1 + 1) / theta5) / theta5;
+    Pr[1] = theta5W * x0 * exp(-theta5W * x0 * (2 * x1 + 1) / thetaW) / thetaW;
 }
 
 void helper_G5(double x0, double x1, double* P6, double* exptaugap, double* Pr) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
-    double theta3 = para[6];
-    double theta53 = para[1] + para[6];
+    double thetaW = para[7];
+    double theta5W = para[1] + para[7];
 
-    Pr[0] = exp(-2 * (tau0 - tau1 + theta53 * x1) / theta5 - x0);
-    Pr[1] = exp(-theta53 * x1 / theta5 - x0);
-    Pr[2] = exp(-theta53 * x1 / theta3 - x0);
-    Pr[3] = exp(-2 * (tau0 - tau1 + theta53 * x1) / theta3 - x0);
+    Pr[0] = exp(-2 * (tau0 - tau1 + theta5W * x1) / theta5 - x0);
+    Pr[1] = exp(-theta5W * x1 / theta5 - x0);
+    Pr[2] = exp(-theta5W * x1 / thetaW - x0);
+    Pr[3] = exp(-2 * (tau0 - tau1 + theta5W * x1) / thetaW - x0);
 }
 
 void helper_G6(double x0, double x1, double* P6, double* exptaugap, double* Pr) {
@@ -4634,8 +4664,8 @@ void helper_G1_PM(double x0, double x1, double* P6, double* P8, double* Pr) {
 
 void helper_G2_PM(double x0, double x1, double* P6, double* P8, double* Pr) {
     double theta5 = para[1];
-    double theta3 = para[6];
-    double theta53 = para[1] + para[6];
+    double thetaW = para[7];
+    double theta5W = para[1] + para[7];
     double P6_ex[C6_ex - 1];
     int i;
 
@@ -4644,13 +4674,13 @@ void helper_G2_PM(double x0, double x1, double* P6, double* P8, double* Pr) {
         P6_ex[1] = P6[C6 * i + 3] + P6[C6 * i + 4];
         P6_ex[2] = P6[C6 * i + 5];
 
-        Pr[i] = theta53 * ((
+        Pr[i] = theta5W * ((
               P6_ex[0] * P8[C8 * 0 + 0]
             + P6_ex[1] * P8[C8 * 1 + 0]
             + P6_ex[2] * P8[C8 * 2 + 0]) / theta5 + (
               P6_ex[0] * P8[C8 * 0 + 2]
             + P6_ex[1] * P8[C8 * 1 + 2]
-            + P6_ex[2] * P8[C8 * 2 + 2]) / theta3);
+            + P6_ex[2] * P8[C8 * 2 + 2]) / thetaW);
     }
 }
 
@@ -4673,14 +4703,14 @@ void helper_G3_PM(double x0, double x1, double* P6, double* P8, double* Pr) {
 
 void helper_G4_PM(double x0, double x1, double* P6, double* P8, double* Pr) {
     double theta5 = para[1];
-    double theta3 = para[6];
-    double theta53 = para[1] + para[6];
+    double thetaW = para[7];
+    double theta5W = para[1] + para[7];
     int i;
 
     for (i = 0; i < C8 - 1; i++) {
-        Pr[i] = theta53 * x0 * (
+        Pr[i] = theta5W * x0 * (
               P8[C8 * i + 0] / theta5
-            + P8[C8 * i + 2] / theta3);
+            + P8[C8 * i + 2] / thetaW);
     }
 }
 
@@ -4721,8 +4751,8 @@ void density_G123(int s, double* P5, double* P7, double* Pr, double wwprior[3]) 
 
 void density_G45(int s, double* P5, double* P7, double* Pr, double wwprior[3]) {
     double theta5 = para[1];
-    double theta3 = para[6];
-    double theta53 = para[1] + para[6];
+    double thetaW = para[7];
+    double theta5W = para[1] + para[7];
     double P5P7[C7 - 1];
     int i;
 
@@ -4737,27 +4767,27 @@ void density_G45(int s, double* P5, double* P7, double* Pr, double wwprior[3]) {
                 + P5[C5_ex * s + 7] * P7[C7 * 7 + i];
     }
 
-    wwprior[0] *= theta53 * (
+    wwprior[0] *= theta5W * (
           (P5P7[0] * Pr[0] + P5P7[1] * Pr[1]) / theta5
-        + (P5P7[4] * Pr[1] + P5P7[7] * Pr[2]) / theta3);
+        + (P5P7[4] * Pr[1] + P5P7[7] * Pr[2]) / thetaW);
 
-    wwprior[1] *= theta53 * (
+    wwprior[1] *= theta5W * (
           (P5P7[0] * Pr[0] + P5P7[2] * Pr[1]) / theta5
-        + (P5P7[5] * Pr[1] + P5P7[7] * Pr[2]) / theta3);
+        + (P5P7[5] * Pr[1] + P5P7[7] * Pr[2]) / thetaW);
 
-    wwprior[2] *= theta53 * (
+    wwprior[2] *= theta5W * (
           (P5P7[0] * Pr[0] + P5P7[3] * Pr[1]) / theta5
-        + (P5P7[6] * Pr[1] + P5P7[7] * Pr[2]) / theta3);
+        + (P5P7[6] * Pr[1] + P5P7[7] * Pr[2]) / thetaW);
 }
 
 void density_G4(int s, double* P5, double* P7, double* Pr, double wwprior[3]) {
     double theta5 = para[1];
-    double theta3 = para[6];
-    double theta53 = para[1] + para[6];
+    double thetaW = para[7];
+    double theta5W = para[1] + para[7];
 
-    double f = theta53 * (
+    double f = theta5W * (
           P5[C5_ex * s + 0] * Pr[0] / theta5
-        + P5[C5_ex * s + 7] * Pr[1] / theta3);
+        + P5[C5_ex * s + 7] * Pr[1] / thetaW);
 
     wwprior[0] *= f;
     wwprior[1] *= f;
@@ -4766,20 +4796,20 @@ void density_G4(int s, double* P5, double* P7, double* Pr, double wwprior[3]) {
 
 void density_G5(int s, double* P5, double* P7, double* Pr, double wwprior[3]) {
     double theta5 = para[1];
-    double theta3 = para[6];
-    double theta53 = para[1] + para[6];
+    double thetaW = para[7];
+    double theta5W = para[1] + para[7];
 
-    wwprior[0] *= theta53 * (
+    wwprior[0] *= theta5W * (
           (P5[C5_ex * s + 0] * Pr[0] + P5[C5_ex * s + 1] * Pr[1]) / theta5
-        + (P5[C5_ex * s + 4] * Pr[2] + P5[C5_ex * s + 7] * Pr[3]) / theta3);
+        + (P5[C5_ex * s + 4] * Pr[2] + P5[C5_ex * s + 7] * Pr[3]) / thetaW);
 
-    wwprior[1] *= theta53 * (
+    wwprior[1] *= theta5W * (
           (P5[C5_ex * s + 0] * Pr[0] + P5[C5_ex * s + 2] * Pr[1]) / theta5
-        + (P5[C5_ex * s + 5] * Pr[2] + P5[C5_ex * s + 7] * Pr[3]) / theta3);
+        + (P5[C5_ex * s + 5] * Pr[2] + P5[C5_ex * s + 7] * Pr[3]) / thetaW);
 
-    wwprior[2] *= theta53 * (
+    wwprior[2] *= theta5W * (
           (P5[C5_ex * s + 0] * Pr[0] + P5[C5_ex * s + 3] * Pr[1]) / theta5
-        + (P5[C5_ex * s + 6] * Pr[2] + P5[C5_ex * s + 7] * Pr[3]) / theta3);
+        + (P5[C5_ex * s + 6] * Pr[2] + P5[C5_ex * s + 7] * Pr[3]) / thetaW);
 }
 
 void density_G6(int s, double* P5, double* P7, double* Pr, double wwprior[3]) {
@@ -4795,10 +4825,10 @@ void t0t1_G1_123_123(double x0, double x1, double t[2]) {
     t0t1_type_1(x0, x1, theta123, t);
 }
 
-void t0t1_G2_123_53(double x0, double x1, double t[2]) {
+void t0t1_G2_123_5W(double x0, double x1, double t[2]) {
     double theta123 = para[4] + para[5] + para[6];
-    double theta53 = para[1] + para[6];
-    t0t1_type_2(x0, x1, theta123, theta53, t);
+    double theta5W = para[1] + para[7];
+    t0t1_type_2(x0, x1, theta123, theta5W, t);
 }
 
 void t0t1_G3_123_4(double x0, double x1, double t[2]) {
@@ -4807,15 +4837,15 @@ void t0t1_G3_123_4(double x0, double x1, double t[2]) {
     t0t1_type_2(x0, x1, theta123, theta4, t);
 }
 
-void t0t1_G4_53_53(double x0, double x1, double t[2]) {
-    double theta53 = para[1] + para[6];
-    t0t1_type_1(x0, x1, theta53, t);
+void t0t1_G4_5W_5W(double x0, double x1, double t[2]) {
+    double theta5W = para[1] + para[7];
+    t0t1_type_1(x0, x1, theta5W, t);
 }
 
-void t0t1_G5_53_4(double x0, double x1, double t[2]) {
-    double theta53 = para[1] + para[6];
+void t0t1_G5_5W_4(double x0, double x1, double t[2]) {
+    double theta5W = para[1] + para[7];
     double theta4 = para[0];
-    t0t1_type_2(x0, x1, theta53, theta4, t);
+    t0t1_type_2(x0, x1, theta5W, theta4, t);
 }
 
 void t0t1_G6_4_4(double x0, double x1, double t[2]) {
@@ -4828,10 +4858,10 @@ void b_G1_123_123(double x0, double x1, double theta12, double b[2]) {
     b_type_1(x0, x1, theta123, b);
 }
 
-void b_G2_123_53(double x0, double x1, double theta12, double b[2]) {
+void b_G2_123_5W(double x0, double x1, double theta12, double b[2]) {
     double theta123 = para[4] + para[5] + para[6];
-    double theta53 = para[1] + para[6];
-    b_type_2(x0, x1, theta123, theta53, b);
+    double theta5W = para[1] + para[7];
+    b_type_2(x0, x1, theta123, theta5W, b);
 }
 
 void b_G3_123_4(double x0, double x1, double theta12, double b[2]) {
@@ -4840,15 +4870,15 @@ void b_G3_123_4(double x0, double x1, double theta12, double b[2]) {
     b_type_3(x0, x1, theta123, theta4, b);
 }
 
-void b_G4_53_53(double x0, double x1, double theta12, double b[2]) {
-    double theta53 = para[1] + para[6];
-    b_type_4(x0, x1, theta53, b);
+void b_G4_5W_5W(double x0, double x1, double theta12, double b[2]) {
+    double theta5W = para[1] + para[7];
+    b_type_4(x0, x1, theta5W, b);
 }
 
-void b_G5_53_4(double x0, double x1, double theta12, double b[2]) {
-    double theta53 = para[1] + para[6];
+void b_G5_5W_4(double x0, double x1, double theta12, double b[2]) {
+    double theta5W = para[1] + para[7];
     double theta4 = para[0];
-    b_type_5(x0, x1, theta53, theta4, b);
+    b_type_5(x0, x1, theta5W, theta4, b);
 }
 
 void b_G6_4_4(double x0, double x1, double theta12, double b[2]) {
@@ -6500,10 +6530,10 @@ void bTot_G1_123_123(double b[2], double t[2], double x[2]) {
     bTot_type_1(b, theta123, t, x);
 }
 
-void bTot_G2_123_53(double b[2], double t[2], double x[2]) {
+void bTot_G2_123_5W(double b[2], double t[2], double x[2]) {
     double theta123 = para[4] + para[5] + para[6];
-    double theta53 = para[1] + para[6];
-    bTot_type_2(b, theta123, theta53, t, x);
+    double theta5W = para[1] + para[7];
+    bTot_type_2(b, theta123, theta5W, t, x);
 }
 
 void bTot_G3_123_4(double b[2], double t[2], double x[2]) {
@@ -6512,15 +6542,15 @@ void bTot_G3_123_4(double b[2], double t[2], double x[2]) {
     bTot_type_3(b, theta123, theta4, t, x);
 }
 
-void bTot_G4_53_53(double b[2], double t[2], double x[2]) {
-    double theta53 = para[1] + para[6];
-    bTot_type_4(b, theta53, t, x);
+void bTot_G4_5W_5W(double b[2], double t[2], double x[2]) {
+    double theta5W = para[1] + para[7];
+    bTot_type_4(b, theta5W, t, x);
 }
 
-void bTot_G5_53_4(double b[2], double t[2], double x[2]) {
-    double theta53 = para[1] + para[6];
+void bTot_G5_5W_4(double b[2], double t[2], double x[2]) {
+    double theta5W = para[1] + para[7];
     double theta4 = para[0];
-    bTot_type_5(b, theta53, theta4, t, x);
+    bTot_type_5(b, theta5W, theta4, t, x);
 }
 
 void bTot_G1_1_XY(double b[2], double t[2], double x[2]) {
@@ -6740,10 +6770,10 @@ double detJ_G1_123_123(double x0, double x1) {
     return detJ_type_1(x0, theta123);
 }
 
-double detJ_G2_123_53(double x0, double x1) {
+double detJ_G2_123_5W(double x0, double x1) {
     double theta123 = para[4] + para[5] + para[6];
-    double theta53 = para[1] + para[6];
-    return detJ_type_2(theta123, theta53);
+    double theta5W = para[1] + para[7];
+    return detJ_type_2(theta123, theta5W);
 }
 
 double detJ_G3_123_4(double x0, double x1) {
@@ -6752,15 +6782,15 @@ double detJ_G3_123_4(double x0, double x1) {
     return detJ_type_2(theta123, theta4);
 }
 
-double detJ_G4_53_53(double x0, double x1) {
-    double theta53 = para[1] + para[6];
-    return detJ_type_1(x0, theta53);
+double detJ_G4_5W_5W(double x0, double x1) {
+    double theta5W = para[1] + para[7];
+    return detJ_type_1(x0, theta5W);
 }
 
-double detJ_G5_53_4(double x0, double x1) {
-    double theta53 = para[1] + para[6];
+double detJ_G5_5W_4(double x0, double x1) {
+    double theta5W = para[1] + para[7];
     double theta4 = para[0];
-    return detJ_type_2(theta53, theta4);
+    return detJ_type_2(theta5W, theta4);
 }
 
 double detJ_G1_1_XY(double x0, double x1) {
@@ -6904,10 +6934,10 @@ double detJ_G3_YZ_4(double x0, double x1) {
  */
 void update_limits() {
     double theta4, theta5, tau0, tau1, theta1=0.0, theta2=0.0, theta12, theta3=0.0, taugap, ltau0, ltau1, ltau2;
-    double theta53, theta123, thetaX, thetaY, thetaXY, theta5Z, thetaXZ, thetaYZ, T;
+    double theta5W, theta123, thetaX, thetaY, thetaXY, theta5Z, thetaXZ, thetaYZ, T;
     double lT1, lT2, lT3, ltaugap, ltaugap5, ltaugap5Z, ltau1T, ltau1TX, ltau1TXZ, ltau1TY, ltau1TYZ;
     int i;
-    struct BTEntry ** gtt = com.GtreeTab;
+    BTEntry ** gtt = com.GtreeTab;
 
     getParams(&theta4, &theta5, &tau0, &tau1, &theta1, &theta2, &theta3);
 
@@ -6915,10 +6945,10 @@ void update_limits() {
         printf("tau0 = %12.8f < tau1 = %12.8f\n", tau0, tau1);
 
     if (com.model == M2Pro || com.model == M2ProMax) {
-        theta53 = theta5 + theta3;
+        theta5W = para[1] + para[7];
         theta123 = theta1 + theta2 + theta3;
         ltau1 = 2 * tau1 / (2 * tau1 + theta123);
-        ltaugap = 2 * (tau0 - tau1) / (2 * (tau0 - tau1) + theta53);
+        ltaugap = 2 * (tau0 - tau1) / (2 * (tau0 - tau1) + theta5W);
 
         gtt[0][0].lim[0] = ltau1;
         gtt[0][0].lim[1] = 0.5;
@@ -7481,7 +7511,7 @@ void setupGtreeTab() {
 }
 
 void setupGtreeTab_seqdata() {
-    struct BTEntry ** gtt = com.GtreeTab;
+    BTEntry ** gtt = com.GtreeTab;
 
     if (com.model == M2Pro || com.model == M2ProMax) {
         if (com.model == M2Pro) {
@@ -7516,17 +7546,17 @@ void setupGtreeTab_seqdata() {
         }
 
         gtt[0][0].t0t1 = t0t1_G1_123_123;
-        gtt[0][1].t0t1 = t0t1_G2_123_53;
+        gtt[0][1].t0t1 = t0t1_G2_123_5W;
         gtt[0][2].t0t1 = t0t1_G3_123_4;
-        gtt[0][3].t0t1 = t0t1_G4_53_53;
-        gtt[0][4].t0t1 = t0t1_G5_53_4;
+        gtt[0][3].t0t1 = t0t1_G4_5W_5W;
+        gtt[0][4].t0t1 = t0t1_G5_5W_4;
         gtt[0][5].t0t1 = t0t1_G6_4_4;
 
         gtt[0][0].b = b_G1_123_123;
-        gtt[0][1].b = b_G2_123_53;
+        gtt[0][1].b = b_G2_123_5W;
         gtt[0][2].b = b_G3_123_4;
-        gtt[0][3].b = b_G4_53_53;
-        gtt[0][4].b = b_G5_53_4;
+        gtt[0][3].b = b_G4_5W_5W;
+        gtt[0][4].b = b_G5_5W_4;
         gtt[0][5].b = b_G6_4_4;
     }
 
@@ -8117,7 +8147,7 @@ void setupGtreeTab_seqdata() {
 }
 
 void setupGtreeTab_treedata() {
-    struct BTEntry ** gtt = com.GtreeTab;
+    BTEntry ** gtt = com.GtreeTab;
 
     if (com.model == M2Pro || com.model == M2ProMax) {
         if (com.model == M2Pro) {
@@ -8152,17 +8182,17 @@ void setupGtreeTab_treedata() {
         }
 
         gtt[0][0].bTot = bTot_G1_123_123;
-        gtt[0][1].bTot = bTot_G2_123_53;
+        gtt[0][1].bTot = bTot_G2_123_5W;
         gtt[0][2].bTot = bTot_G3_123_4;
-        gtt[0][3].bTot = bTot_G4_53_53;
-        gtt[0][4].bTot = bTot_G5_53_4;
+        gtt[0][3].bTot = bTot_G4_5W_5W;
+        gtt[0][4].bTot = bTot_G5_5W_4;
         gtt[0][5].bTot = bTot_G6_4_4;
 
         gtt[0][0].detJ = detJ_G1_123_123;
-        gtt[0][1].detJ = detJ_G2_123_53;
+        gtt[0][1].detJ = detJ_G2_123_5W;
         gtt[0][2].detJ = detJ_G3_123_4;
-        gtt[0][3].detJ = detJ_G4_53_53;
-        gtt[0][4].detJ = detJ_G5_53_4;
+        gtt[0][3].detJ = detJ_G4_5W_5W;
+        gtt[0][4].detJ = detJ_G5_5W_4;
         gtt[0][5].detJ = detJ_G6_4_4;
     }
 
