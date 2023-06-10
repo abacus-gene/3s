@@ -48,6 +48,10 @@
 #define MAXNSONS              2  /* max # of sons per node */
 #define MAXSPTREES            3
 
+#define NTAYLORTERMS          9
+#define NSQUARES             10
+#define COMPAT_V3_AUG_2015
+
 #ifndef MULTIPLIER
 #define MULTIPLIER 1
 #endif

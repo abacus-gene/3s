@@ -181,7 +181,7 @@ int GetOptions (char *ctlf)
         "fix_2s_thetaX", "fix_2s_thetaY" };
     int nopt = LENGTH_OF(optstr);
     double t=1;
-    int m[NEXTMODELS] = {0, 0, 0, 0}, runm[NEXTMODELS] = {0, 0, 0, 0}, nm = 0;
+    int m[NEXTMODELS] = {0, 0, 0, 0}, runm[NEXTMODELS] = {0, 0, 0, 0}, nm = -2;
     enum { M12 = 0, M21, M13, M31, M23, M32, M53, M35, Phi12, Phi21, Phi13, Phi31, Phi23, Phi32 };
     enum { Theta5_4 = 0, Theta1_5, Theta2_5, Theta3_4, Theta5_1, Theta5_2, ThetaX, ThetaY, ThetaZ, ThetaU, ThetaV, ThetaW };
     enum { M12_2sp = 0, M21_2sp, MG1_2sp, M1G_2sp, MG2_2sp, M2G_2sp, MXY_2sp, MYX_2sp, Phi12_2sp, Phi21_2sp, PhiG1_2sp, PhiG2_2sp };
@@ -198,7 +198,7 @@ int GetOptions (char *ctlf)
     com.usedata = ESeqData;
     com.verbose = 1;
     com.aroundMLEM0 = 1;
-    com.nthreads = 1;
+    com.nthreads = -2;
     com.theta_UB = 1.99;
     com.M_UB = 9.99;
     com.cleandata = 1;
@@ -348,6 +348,15 @@ int GetOptions (char *ctlf)
             ReadSpeciesTree(fctl, "3  1 2 3");
         }
 
+        if (nm == -2) {
+            fprintf(stderr, "\nWarning: no gene flow model is specified (option 'models').\n");
+            fprintf(stderr, "  Use the default: models = 0 1 2\n");
+            m[0] = 0;
+            m[1] = 1;
+            m[2] = 2;
+            nm = 3;
+        }
+
         for (i = 0; i < nm; i++) {
             if (m[i] >= NEXTMODELS) {
                 error2("option models: unknown model");
@@ -377,7 +386,7 @@ int GetOptions (char *ctlf)
                     com.runmodels[i] = 0;
         }
 
-        if (!nm)
+        if (nm <= 0)
             error2("no model specified (option 'models')");
 
         if (com.runmodels[M2IM]) {
@@ -412,6 +421,16 @@ int GetOptions (char *ctlf)
             fprintf(stderr, "\nWarning: model M0 is not specified (option 'models').\n");
             fprintf(stderr, "  Option 'initialvalues' is set to 0.\n");
             com.aroundMLEM0 = 0;
+        }
+
+        if (com.nthreads == -2) {
+#ifdef _OPENMP
+            fprintf(stderr, "\nWarning: option 'nthreads' is not porvided.\n");
+            fprintf(stderr, "  Use the default: nthreads = -1\n");
+            com.nthreads = -1;
+#else
+            com.nthreads = 1;
+#endif
         }
 
         if (com.simmodel && com.runmodels[M2IM] && (
@@ -3076,6 +3095,10 @@ int GetInitials (int np, double x[], double xb[][2])
             else {
                 if (com.aroundMLEM0 && MLEM0[stree.sptree].para[com.paraNamesMap[i]] != 0)
                     x[i] = MLEM0[stree.sptree].para[com.paraNamesMap[i]] * (0.95 + 0.001*rndu()*MULTIPLIER);
+#ifdef COMPAT_V3_AUG_2015
+                else if (com.aroundMLEM0 && MLEM0[stree.sptree].para[com.paraNamesMap[i]] == 0)
+                    x[i] = 0.95 + 0.001*rndu()*MULTIPLIER;
+#endif
                 else
                     x[i] = (0.0010 + rndu() / 100)*MULTIPLIER;
 

@@ -2876,7 +2876,7 @@ void computePMatrix(double t, double * Q, int N, double * P, double * work) {
 #ifdef USE_GSL
     matexpGSL(P, N, work);
 #else
-    matexp(P, N, 9, 7, work);
+    matexp(P, N, NTAYLORTERMS, NSQUARES, work);
 #endif
 }
 
@@ -4052,121 +4052,121 @@ void wrapper(double x0, double x1, double* Pr, double wwprior[3]) { \
 
 // Variable transformations
 
-inline void t0t1_type_1(double x0, double x1, double theta, double t[2]) {
+static inline void t0t1_type_1(double x0, double x1, double theta, double t[2]) {
     t[1] = theta * x0 * x1 / 2;
     t[0] = theta * x0 * (1 - x1) / 2;
 }
 
-inline void t0t1_type_2(double x0, double x1, double thetai, double thetaj, double t[2]) {
+static inline void t0t1_type_2(double x0, double x1, double thetai, double thetaj, double t[2]) {
     t[1] = thetai * x1 / 2;
     t[0] = thetaj * x0 / 2;
 }
 
-inline void t0t1_type_3(double x0, double x1, double theta, double t[2]) {
+static inline void t0t1_type_3(double x0, double x1, double theta, double t[2]) {
     t[1] = theta * x1 / 2;
     t[0] = theta * x0 / 2;
 }
 
-inline void t0t1_type_4(double x0, double x1, double thetai, double thetaj, double t[2]) {
+static inline void t0t1_type_4(double x0, double x1, double thetai, double thetaj, double t[2]) {
     double T = para[7];
     t[1] = thetai * x1 / 2;
     t[0] = thetaj * x0 / 2 + T - t[1];
 }
 
-inline void t0t1_type_5(double x0, double x1, double theta, double t[2]) {
+static inline void t0t1_type_5(double x0, double x1, double theta, double t[2]) {
     double T = para[7];
     t[1] = theta * x0 * x1 / 2 + T;
     t[0] = theta * x0 * (1 - x1) / 2;
 }
 
-inline void t0t1_type_6(double x0, double x1, double thetai, double thetaj, double t[2]) {
+static inline void t0t1_type_6(double x0, double x1, double thetai, double thetaj, double t[2]) {
     double T = para[7];
     t[1] = thetai * x1 / 2 + T;
     t[0] = thetaj * x0 / 2;
 }
 
-inline double detJ_type_1(double x0, double theta) {
+static inline double detJ_type_1(double x0, double theta) {
     return x0 * theta * theta / 4;
 }
 
-inline double detJ_type_2(double thetai, double thetaj) {
+static inline double detJ_type_2(double thetai, double thetaj) {
     return thetai * thetaj / 4;
 }
 
-inline double detJ_type_3(double theta) {
+static inline double detJ_type_3(double theta) {
     return theta * theta / 4;
 }
 
-inline void b_type_1(double x0, double x1, double theta, double b[2]) {
+static inline void b_type_1(double x0, double x1, double theta, double b[2]) {
     b[1] = theta * x0 * x1 / 2;
     b[0] = theta * x0 * (1 - x1) / 2;
 }
 
-inline void b_type_2(double x0, double x1, double thetai, double thetaj, double b[2]) {
+static inline void b_type_2(double x0, double x1, double thetai, double thetaj, double b[2]) {
     double tau1 = para[3];
     b[1] = thetai * x1 / 2;
     b[0] = thetaj * x0 / 2 + tau1 - b[1];
 }
 
-inline void b_type_3(double x0, double x1, double thetai, double thetaj, double b[2]) {
+static inline void b_type_3(double x0, double x1, double thetai, double thetaj, double b[2]) {
     double tau0 = para[2];
     b[1] = thetai * x1 / 2;
     b[0] = thetaj * x0 / 2 + tau0 - b[1];
 }
 
-inline void b_type_4(double x0, double x1, double theta, double b[2]) {
+static inline void b_type_4(double x0, double x1, double theta, double b[2]) {
     double tau1 = para[3];
     b[1] = theta * x0 * x1 / 2 + tau1;
     b[0] = theta * x0 * (1 - x1) / 2;
 }
 
-inline void b_type_5(double x0, double x1, double thetai, double thetaj, double b[2]) {
+static inline void b_type_5(double x0, double x1, double thetai, double thetaj, double b[2]) {
     double tau0 = para[2];
     double tau1 = para[3];
     b[1] = thetai * x1 / 2 + tau1;
     b[0] = thetaj * x0 / 2 + tau0 - b[1];
 }
 
-inline void b_type_6(double x0, double x1, double theta, double b[2]) {
+static inline void b_type_6(double x0, double x1, double theta, double b[2]) {
     double tau0 = para[2];
     b[1] = theta * x1 / 2 + tau0;
     b[0] = theta * x0 / 2;
 }
 
-inline void b_type_7(double x0, double x1, double thetai, double thetaj, double b[2]) {
+static inline void b_type_7(double x0, double x1, double thetai, double thetaj, double b[2]) {
     double T = para[7];
     b[1] = thetai * x1 / 2;
     b[0] = thetaj * x0 / 2 + T - b[1];
 }
 
-inline void b_type_8(double x0, double x1, double theta, double b[2]) {
+static inline void b_type_8(double x0, double x1, double theta, double b[2]) {
     double T = para[7];
     b[1] = theta * x0 * x1 / 2 + T;
     b[0] = theta * x0 * (1 - x1) / 2;
 }
 
-inline void b_type_9(double x0, double x1, double thetai, double thetaj, double b[2]) {
+static inline void b_type_9(double x0, double x1, double thetai, double thetaj, double b[2]) {
     double tau1 = para[3];
     double T = para[7];
     b[1] = thetai * x1 / 2 + T;
     b[0] = thetaj * x0 / 2 + tau1 - b[1];
 }
 
-inline void b_type_10(double x0, double x1, double thetai, double thetaj, double b[2]) {
+static inline void b_type_10(double x0, double x1, double thetai, double thetaj, double b[2]) {
     double tau0 = para[2];
     double T = para[7];
     b[1] = thetai * x1 / 2 + T;
     b[0] = thetaj * x0 / 2 + tau0 - b[1];
 }
 
-inline void bTot_type_1(double b[2], double theta, double t[2], double x[2]) {
+static inline void bTot_type_1(double b[2], double theta, double t[2], double x[2]) {
     t[1] = b[1];
     t[0] = b[0];
     x[1] = t[1] / (t[0] + t[1]);
     x[0] = 2 * (t[0] + t[1]) / theta;
 }
 
-inline void bTot_type_2(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
+static inline void bTot_type_2(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
     double tau1 = para[3];
     t[1] = b[1];
     t[0] = b[0] + b[1] - tau1;
@@ -4174,7 +4174,7 @@ inline void bTot_type_2(double b[2], double thetai, double thetaj, double t[2], 
     x[0] = 2 * t[0] / thetaj;
 }
 
-inline void bTot_type_3(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
+static inline void bTot_type_3(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
     double tau0 = para[2];
     t[1] = b[1];
     t[0] = b[0] + b[1] - tau0;
@@ -4182,7 +4182,7 @@ inline void bTot_type_3(double b[2], double thetai, double thetaj, double t[2], 
     x[0] = 2 * t[0] / thetaj;
 }
 
-inline void bTot_type_4(double b[2], double theta, double t[2], double x[2]) {
+static inline void bTot_type_4(double b[2], double theta, double t[2], double x[2]) {
     double tau1 = para[3];
     t[1] = b[1] - tau1;
     t[0] = b[0];
@@ -4190,7 +4190,7 @@ inline void bTot_type_4(double b[2], double theta, double t[2], double x[2]) {
     x[0] = 2 * (t[0] + t[1]) / theta;
 }
 
-inline void bTot_type_5(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
+static inline void bTot_type_5(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
     double tau0 = para[2];
     double tau1 = para[3];
     t[1] = b[1] - tau1;
@@ -4199,7 +4199,7 @@ inline void bTot_type_5(double b[2], double thetai, double thetaj, double t[2], 
     x[0] = 2 * t[0] / thetaj;
 }
 
-inline void bTot_type_6(double b[2], double theta, double t[2], double x[2]) {
+static inline void bTot_type_6(double b[2], double theta, double t[2], double x[2]) {
     double tau0 = para[2];
     t[1] = b[1] - tau0;
     t[0] = b[0];
@@ -4207,7 +4207,7 @@ inline void bTot_type_6(double b[2], double theta, double t[2], double x[2]) {
     x[0] = 2 * t[0] / theta;
 }
 
-inline void bTot_type_7(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
+static inline void bTot_type_7(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
     double T = para[7];
     t[1] = b[1];
     t[0] = b[0];
@@ -4215,7 +4215,7 @@ inline void bTot_type_7(double b[2], double thetai, double thetaj, double t[2], 
     x[0] = 2 * (t[0] + t[1] - T) / thetaj;
 }
 
-inline void bTot_type_8(double b[2], double theta, double t[2], double x[2]) {
+static inline void bTot_type_8(double b[2], double theta, double t[2], double x[2]) {
     double T = para[7];
     t[1] = b[1];
     t[0] = b[0];
@@ -4223,7 +4223,7 @@ inline void bTot_type_8(double b[2], double theta, double t[2], double x[2]) {
     x[0] = 2 * (t[0] + t[1] - T) / theta;
 }
 
-inline void bTot_type_9(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
+static inline void bTot_type_9(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
     double tau1 = para[3];
     double T = para[7];
     t[1] = b[1];
@@ -4232,7 +4232,7 @@ inline void bTot_type_9(double b[2], double thetai, double thetaj, double t[2], 
     x[0] = 2 * t[0] / thetaj;
 }
 
-inline void bTot_type_10(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
+static inline void bTot_type_10(double b[2], double thetai, double thetaj, double t[2], double x[2]) {
     double tau0 = para[2];
     double T = para[7];
     t[1] = b[1];
@@ -4889,12 +4889,12 @@ void b_G6_4_4(double x0, double x1, double theta12, double b[2]) {
 
 // Density functions for M3MSci12
 
-inline void g12_G1_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G1_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double f = x0 * exp(-2 * x0 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G1_z_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G1_z_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double thetaI = para[7 + i];
@@ -4907,7 +4907,7 @@ inline void g12_G1_z_iii(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G1_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G1_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double thetaI = para[7 + i];
@@ -4920,14 +4920,14 @@ inline void g12_G1_m_iii(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G2_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G2_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double f = Pr[i - 1] * exp(-2 * T / thetai - 2 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G2_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G2_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double thetai = para[3 + i];
@@ -4943,7 +4943,7 @@ inline void g12_G2_m_iii(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G3_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G3_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -4953,7 +4953,7 @@ inline void g12_G3_p_iii(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G3_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G3_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -4971,14 +4971,14 @@ inline void g12_G3_m_iii(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G4_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G4_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double f = Pr[1 + i] * x0 * exp(-6 * T / thetai - 2 * x0 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G5_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G5_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -4988,7 +4988,7 @@ inline void g12_G5_iii(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G6_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G6_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -4998,7 +4998,7 @@ inline void g12_G6_iii(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G1_z_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G1_z_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double thetaI = para[7 + i];
@@ -5012,7 +5012,7 @@ inline void g12_G1_z_iij(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void g12_G1_m_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G1_m_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double thetaI = para[7 + i];
@@ -5026,12 +5026,12 @@ inline void g12_G1_m_iij(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G2_p_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G2_p_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double f = Pr[4] * exp(-x1 - x0);
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void g12_G2_m_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G2_m_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double thetai = para[3 + i];
@@ -5049,7 +5049,7 @@ inline void g12_G2_m_iij(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= fc; wwprior[1] *= fab; wwprior[2] *= fab;
 }
 
-inline void g12_G3_p_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G3_p_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5057,7 +5057,7 @@ inline void g12_G3_p_iij(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void g12_G3_m_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G3_m_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5077,14 +5077,14 @@ inline void g12_G3_m_iij(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= fc; wwprior[1] *= fab; wwprior[2] *= fab;
 }
 
-inline void g12_G4_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G4_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double f = Pr[4 + i] * x0 * exp(-2 * T / thetai - 2 * x0 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G5_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G5_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5094,7 +5094,7 @@ inline void g12_G5_iij(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G6_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G6_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5104,12 +5104,12 @@ inline void g12_G6_iij(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void g12_G3_p_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G3_p_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double f = exp(-x1 - x0);
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void g12_G3_m_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G3_m_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double thetaI = para[7 + i];
@@ -5122,14 +5122,14 @@ inline void g12_G3_m_ii3(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void g12_G5_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G5_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double f = Pr[i - 1] * exp(-2 * T / thetai - x1 - x0);
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void g12_G6_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void g12_G6_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5331,12 +5331,12 @@ void b_G3_XY_4(double x0, double x1, double theta12, double b[2]) {
 
 // Density functions for M3MSci13 and M3MSci23
 
-inline void gi3_G1_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double f = x0 * exp(-2 * x0 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G1_z_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_z_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double thetaI = para[8];
@@ -5349,7 +5349,7 @@ inline void gi3_G1_z_iii(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G1_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double thetaI = para[8];
@@ -5362,7 +5362,7 @@ inline void gi3_G1_m_iii(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -5377,7 +5377,7 @@ inline void gi3_G2_p_iii(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -5393,14 +5393,14 @@ inline void gi3_G2_m_iii(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G3_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_p_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double f = Pr[0] * exp(-2 * T / thetai - 2 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G3_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_m_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5418,7 +5418,7 @@ inline void gi3_G3_m_iii(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G4_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G4_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -5433,7 +5433,7 @@ inline void gi3_G4_iii(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G5_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G5_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5451,26 +5451,26 @@ inline void gi3_G5_iii(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G6_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G6_iii(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double f = Pr[1] * exp(-6 * T / thetai - 3 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G1_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double f = x0 * exp(-2 * x0 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double thetaj = para[6 - i];
     double f = exp(-2 * tau1 / thetaj - 2 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G3_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5479,14 +5479,14 @@ inline void gi3_G3_jjj(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G4_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G4_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double thetaj = para[6 - i];
     double f = x0 * exp(-6 * tau1 / thetaj - 2 * x0 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G5_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G5_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5495,7 +5495,7 @@ inline void gi3_G5_jjj(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G6_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G6_jjj(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5504,13 +5504,13 @@ inline void gi3_G6_jjj(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_p_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_p_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double phi3I = para[11];
     double f = (1 - phi3I) * exp(-x1 - x0);
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G2_m_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_m_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double phi3I = para[11];
@@ -5518,7 +5518,7 @@ inline void gi3_G2_m_iij(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G3_p_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_p_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5529,7 +5529,7 @@ inline void gi3_G3_p_iij(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G3_m_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_m_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5545,7 +5545,7 @@ inline void gi3_G3_m_iij(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G4_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G4_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double thetai = para[3 + i];
@@ -5555,7 +5555,7 @@ inline void gi3_G4_iij(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G5_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G5_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5573,20 +5573,20 @@ inline void gi3_G5_iij(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= fc; wwprior[1] *= fab; wwprior[2] *= fab;
 }
 
-inline void gi3_G6_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G6_iij(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double f = Pr[2] * exp(-2 * T / thetai - 3 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_jji(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_jji(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double phi3I = para[11];
     double f = (1 - phi3I) * exp(-x1 - x0);
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G3_jji(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_jji(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5597,7 +5597,7 @@ inline void gi3_G3_jji(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G4_jji(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G4_jji(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double thetaj = para[6 - i];
     double phi3I = para[11];
@@ -5605,7 +5605,7 @@ inline void gi3_G4_jji(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G5_jji(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G5_jji(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5618,7 +5618,7 @@ inline void gi3_G5_jji(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= fc; wwprior[1] *= fab; wwprior[2] *= fab;
 }
 
-inline void gi3_G6_jji(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G6_jji(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5630,7 +5630,7 @@ inline void gi3_G6_jji(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G1_z_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_z_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double thetaI = para[8];
     double thetaZ = para[9];
     double thetaIZ = para[8] + para[9];
@@ -5642,7 +5642,7 @@ inline void gi3_G1_z_ii3(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G1_m_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_m_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double thetaI = para[8];
@@ -5656,7 +5656,7 @@ inline void gi3_G1_m_ii3(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_p_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_p_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -5671,7 +5671,7 @@ inline void gi3_G2_p_ii3(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G2_m_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_m_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -5688,12 +5688,12 @@ inline void gi3_G2_m_ii3(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G3_p_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_p_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double f = Pr[3] * exp(-x1 - x0);
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G3_m_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_m_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5713,7 +5713,7 @@ inline void gi3_G3_m_ii3(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= fc; wwprior[1] *= fab; wwprior[2] *= fab;
 }
 
-inline void gi3_G4_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G4_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -5729,7 +5729,7 @@ inline void gi3_G4_ii3(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G5_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G5_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5749,20 +5749,20 @@ inline void gi3_G5_ii3(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= fc; wwprior[1] *= fab; wwprior[2] *= fab;
 }
 
-inline void gi3_G6_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G6_ii3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double thetai = para[3 + i];
     double f = Pr[4] * exp(-2 * T / thetai - 3 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_jj3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_jj3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double phiI3 = para[10];
     double f = phiI3 * exp(-x1 - x0);
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G3_jj3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_jj3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5773,7 +5773,7 @@ inline void gi3_G3_jj3(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= 0; wwprior[2] *= 0;
 }
 
-inline void gi3_G4_jj3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G4_jj3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double thetaj = para[6 - i];
     double phiI3 = para[10];
@@ -5781,7 +5781,7 @@ inline void gi3_G4_jj3(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G5_jj3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G5_jj3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5794,7 +5794,7 @@ inline void gi3_G5_jj3(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= fc; wwprior[1] *= fab; wwprior[2] *= fab;
 }
 
-inline void gi3_G6_jj3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G6_jj3(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5806,14 +5806,14 @@ inline void gi3_G6_jj3(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_m_123(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_m_123(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double phiI3 = para[10];
     double phi3I = para[11];
     double f = (1 - phi3I) * phiI3 * exp(-x1 - x0);
     wwprior[0] *= 0; wwprior[i] *= f; wwprior[3 - i] *= 0;
 }
 
-inline void gi3_G3_m_123(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_m_123(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -5828,7 +5828,7 @@ inline void gi3_G3_m_123(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= 0; wwprior[i] *= f; wwprior[3 - i] *= 0;
 }
 
-inline void gi3_G4_123(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G4_123(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double thetaI = para[8];
@@ -5838,7 +5838,7 @@ inline void gi3_G4_123(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G5_123(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G5_123(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5857,12 +5857,12 @@ inline void gi3_G5_123(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= fc; wwprior[i] *= fi; wwprior[3 - i] *= fj;
 }
 
-inline void gi3_G6_123(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G6_123(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double f = Pr[5] * exp(-3 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G1_z_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_z_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double thetaI = para[8];
     double thetaZ = para[9];
     double thetaIZ = para[8] + para[9];
@@ -5874,7 +5874,7 @@ inline void gi3_G1_z_i33(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= 0; wwprior[1] *= 0; wwprior[2] *= f;
 }
 
-inline void gi3_G1_m_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_m_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double theta3 = para[6];
     double thetaI = para[8];
@@ -5888,7 +5888,7 @@ inline void gi3_G1_m_i33(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_p_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_p_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -5903,7 +5903,7 @@ inline void gi3_G2_p_i33(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= 0; wwprior[1] *= 0; wwprior[2] *= f;
 }
 
-inline void gi3_G2_m_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_m_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -5920,12 +5920,12 @@ inline void gi3_G2_m_i33(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G3_p_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_p_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double f = Pr[6] * exp(-x1 - x0);
     wwprior[0] *= 0; wwprior[1] *= 0; wwprior[2] *= f;
 }
 
-inline void gi3_G3_m_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_m_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5945,7 +5945,7 @@ inline void gi3_G3_m_i33(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= fbc; wwprior[1] *= fbc; wwprior[2] *= fa;
 }
 
-inline void gi3_G4_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G4_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -5961,7 +5961,7 @@ inline void gi3_G4_i33(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G5_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G5_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -5981,20 +5981,20 @@ inline void gi3_G5_i33(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= fbc; wwprior[1] *= fbc; wwprior[2] *= fa;
 }
 
-inline void gi3_G6_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G6_i33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double theta3 = para[6];
     double f = Pr[7] * exp(-2 * T / theta3 - 3 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_p_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_p_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double phiI3 = para[10];
     double f = phiI3 * exp(-x1 - x0);
     wwprior[0] *= 0; wwprior[1] *= 0; wwprior[2] *= f;
 }
 
-inline void gi3_G2_m_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_m_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double theta3 = para[6];
     double phiI3 = para[10];
@@ -6002,7 +6002,7 @@ inline void gi3_G2_m_j33(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= 0; wwprior[1] *= 0; wwprior[2] *= f;
 }
 
-inline void gi3_G3_p_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_p_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double theta5 = para[1];
@@ -6013,7 +6013,7 @@ inline void gi3_G3_p_j33(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= 0; wwprior[1] *= 0; wwprior[2] *= f;
 }
 
-inline void gi3_G3_m_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_m_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -6029,7 +6029,7 @@ inline void gi3_G3_m_j33(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= 0; wwprior[1] *= 0; wwprior[2] *= f;
 }
 
-inline void gi3_G4_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G4_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta3 = para[6];
@@ -6039,7 +6039,7 @@ inline void gi3_G4_j33(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G5_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G5_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -6057,19 +6057,19 @@ inline void gi3_G5_j33(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= fbc; wwprior[1] *= fbc; wwprior[2] *= fa;
 }
 
-inline void gi3_G6_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G6_j33(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double theta3 = para[6];
     double f = Pr[8] * exp(-2 * T / theta3 - 3 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G1_p_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_p_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double f = x0 * exp(-2 * x0 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G1_z_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_z_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double theta3 = para[6];
     double thetaI = para[8];
@@ -6082,7 +6082,7 @@ inline void gi3_G1_z_333(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G1_m_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G1_m_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double theta3 = para[6];
     double thetaI = para[8];
@@ -6095,7 +6095,7 @@ inline void gi3_G1_m_333(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_p_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_p_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -6110,7 +6110,7 @@ inline void gi3_G2_p_333(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G2_m_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G2_m_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -6126,14 +6126,14 @@ inline void gi3_G2_m_333(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G3_p_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_p_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double theta3 = para[6];
     double f = Pr[9] * exp(-2 * T / theta3 - 2 * x1 - x0);
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G3_m_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G3_m_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -6151,7 +6151,7 @@ inline void gi3_G3_m_333(int i, double x0, double x1, double* Pr, double wwprior
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G4_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G4_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau1 = para[3];
     double T = para[7];
     double theta5 = para[1];
@@ -6166,7 +6166,7 @@ inline void gi3_G4_333(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G5_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G5_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double tau0 = para[2];
     double tau1 = para[3];
     double T = para[7];
@@ -6184,7 +6184,7 @@ inline void gi3_G5_333(int i, double x0, double x1, double* Pr, double wwprior[3
     wwprior[0] *= f; wwprior[1] *= f; wwprior[2] *= f;
 }
 
-inline void gi3_G6_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
+static inline void gi3_G6_333(int i, double x0, double x1, double* Pr, double wwprior[3]) {
     double T = para[7];
     double theta3 = para[6];
     double f = Pr[10] * exp(-6 * T / theta3 - 3 * x1 - x0);
