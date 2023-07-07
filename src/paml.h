@@ -395,6 +395,6 @@ enum {PrBranch=1, PrNodeNum=2, PrLabel=4, PrAge=8, PrOmega=16} /*OutTreeOptions*
 
 #define FullSeqNames      0   /* 1: numbers at the beginning of sequence name are part of name */
 
-#define pamlVerStr "paml version 4.9, January 2015"
+//#define pamlVerStr "paml version 4.10.7, June 2023"
 
 #endif

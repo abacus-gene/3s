@@ -1,11 +1,11 @@
 /* 3s.c
 
- Ziheng Yang, 2002, 2009, 2011
+ Ziheng Yang, 2002, 2009, 2011, 2017, 2023
 
  This is an ML program to estimate theta4, theta5, tau0, and tau1 for the 3-species problem,
  using numerical integration to calculate the likelihood.
 
- cl -O2 3s.c tools.c lfun3s.c
+ cl -Ox 3s.c tools.c lfun3s.c
  cc -o 3s -O3 3s.c tools.c lfun3s.c -lm
 
  If GNU Scientific Library (GSL) is installed:
@@ -92,7 +92,7 @@ double lbound1, ubound1, inc1, lbound2, ubound2, inc2;
 
 int main (int argc, char* argv[])
 {
-    char VerStr[32] = "Version 4.0 beta, Jun 2023";
+    char VerStr[32] = "Version 4.0 beta, July 2023";
     double* space;
 
     if (argc > 2 && !strcmp(argv[argc - 1], "--stdout-no-buf"))
@@ -121,7 +121,7 @@ int main (int argc, char* argv[])
     starttimer();
     GetOptions (com.ctlf);
 
-    if(com.seed<=0) com.seed = abs((2*(int)time(NULL)+1));
+    // if(com.seed<=0) com.seed = abs((2*(int)time(NULL)+1));
     SetSeed(com.seed, 0);
 
     if ((fout=gfopen(com.outf, "w")) == NULL) error2("failed to create out file..");
@@ -199,7 +199,7 @@ int GetOptions (char *ctlf)
     com.verbose = 1;
     com.aroundMLEM0 = 1;
     com.nthreads = -2;
-    com.theta_UB = 1.99;
+    com.theta_UB = 0.599;
     com.M_UB = 9.99;
     com.cleandata = 1;
     com.fix_locusrate = 0;
@@ -3040,7 +3040,7 @@ int GetParaMap() {
 int GetInitials (int np, double x[], double xb[][2])
 {
     int i, j, np0;
-    double thetaU=com.theta_UB/*1.99*/*MULTIPLIER, /*tmp,*/ MU= com.M_UB/*9.99*/;//0.15;  /* MU = 0.125 should be fine */
+    double thetaU=com.theta_UB*MULTIPLIER, /*tmp,*/ MU= com.M_UB; //0.15;  /* MU = 0.125 should be fine */
     int isM2 = (com.model == M2SIM3s || com.model == M2Pro || com.model == M2ProMax);
     int isM3 = (com.model == M3MSci12 || com.model == M3MSci13 || com.model == M3MSci23);
 

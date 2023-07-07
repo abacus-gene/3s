@@ -1,15 +1,15 @@
 * M0
-* theta4    theta5      tau0      tau1    theta1    theta2    theta3
-0.002928  0.000684  0.005960  0.004808  1.989785  0.950764  0.302291
+* theta4   theta5     tau0     tau1   theta1   theta2   theta3
+   0.002    0.002     0.01    0.005    0.002    0.002    0.002
 
 * M1
-* theta4    theta5      tau0      tau1    theta1    theta2    theta3     qbeta
-0.002928  0.000684  0.005960  0.004808  1.989785  0.950764  0.302291  5.874640
+* theta4   theta5     tau0     tau1   theta1   theta2   theta3   qbeta
+   0.002    0.002     0.01    0.005    0.002    0.002    0.002     5.5
 
 * M2
-* theta4    theta5      tau0      tau1    theta1    theta2    theta3       M12       M21       M13       M31       M23       M32       M53       M35
-0.002928  0.000684  0.005960  0.004808  1.989785  0.950764  0.302291  0.000000  0.000000  0.000000  0.000000  0.000000  0.000000  0.000000  0.000000
+* theta4   theta5     tau0     tau1   theta1   theta2   theta3     M12    M21    M13    M31    M23    M32    M53    M35
+   0.002    0.002     0.01    0.005    0.002    0.002    0.002     0.0    0.0    0.0    0.0    0.0    0.0    0.0    0.0
 
 * M3
-* theta4    theta5      tau0      tau1    theta1    theta2    theta3      tauH     phi12     phi21     phi13     phi31     phi23     phi32
-0.002928  0.000684  0.005960  0.004808  1.989785  0.950764  0.302291  0.000000  0.000000  0.000000  0.000000  0.000000  0.000000  0.000000
+* theta4   theta5     tau0     tau1   theta1   theta2   theta3    tauH  phi12  phi21  phi13  phi31  phi23  phi32
+   0.002    0.002     0.01    0.005    0.002    0.002    0.002  0.0025    0.0    0.0    0.0    0.0    0.0    0.0
