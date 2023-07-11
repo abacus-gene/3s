@@ -199,7 +199,7 @@ int GetOptions (char *ctlf)
     com.verbose = 1;
     com.aroundMLEM0 = 1;
     com.nthreads = -2;
-    com.theta_UB = 0.599;
+    com.theta_UB = 0.499;
     com.M_UB = 9.99;
     com.cleandata = 1;
     com.fix_locusrate = 0;
@@ -556,7 +556,7 @@ int GetInitialsFromFile(char *filename)
 #define NA MAXPARAMETERS
     /*
     in.3s:
-    Indix:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
+    Index:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
     M0:       theta4 theta5   tau0   tau1 theta1 theta2 theta3
     M1:       theta4 theta5   tau0   tau1 theta1 theta2 theta3  qbeta
     M2:       theta4 theta5   tau0   tau1 theta1 theta2 theta3    M12    M21    M13    M31    M23    M32    M53    M35 thetaW
@@ -565,7 +565,7 @@ int GetInitialsFromFile(char *filename)
                                                         \||/
                                                          \/
     com.initials[NMODELS][MAXPARAMETERS + 1]:
-    Indix:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
+    Index:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
     M0:       theta4 theta5   tau0   tau1 theta1 theta2 theta3
     M1:       theta4 theta5   tau0   tau1 theta1 theta2 theta3  qbeta
     M2_S:     theta4 theta5   tau0   tau1 theta1 theta2 theta3           M12    M21
@@ -587,7 +587,7 @@ int GetInitialsFromFile(char *filename)
 
     /*
     in.2s:
-    Indix:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
+    Index:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
     M0:       theta0   tau0 theta1 theta2
     M2:       theta0   tau0 theta1 theta2   tau1    M12    M21    MXY    MYX    MG1    M1G    MG2    M2G thetaG thetaX thetaY
     M3:       theta0   tau0 theta1 theta2   tau1   tauH  phi12  phi21  phiG1  phiG2 thetaG thetaX thetaY
@@ -595,7 +595,7 @@ int GetInitialsFromFile(char *filename)
                                                         \||/
                                                          \/
     com.initials[NMODELS][MAXPARAMETERS + 1]:
-    Indix:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
+    Index:         0      1      2      3      4      5      6      7      8      9     10     11     12     13     14     15     16
     M0:       theta0          tau0        theta1 theta2
     M2_1:     theta0          tau0        theta1 theta2                  M12    M21
     M2_2:     theta0 thetaX   tau0   tau1 theta1 thetaG theta2 thetaY                                MG2    M2G    MXY    MYX
@@ -3225,8 +3225,8 @@ int GetInitials (int np, double x[], double xb[][2])
         FOR(i,np) printf(" %20.18f", xb[i][1]);  FPN(F0);
 #else
         FOR(i,np) printf(" %9.6f", x[com.printMap[i]]); FPN(F0);
-        FOR(i,np) printf(" %9.5f", xb[com.printMap[i]][0]);  FPN(F0);
-        FOR(i,np) printf(" %9.5f", xb[com.printMap[i]][1]);  FPN(F0);
+        FOR(i,np) printf(" %9.6f", xb[com.printMap[i]][0]);  FPN(F0);
+        FOR(i,np) printf(" %9.6f", xb[com.printMap[i]][1]);  FPN(F0);
 #endif
     }
 
